@@ -86,8 +86,13 @@ interface DatabaseSchema {
   portfolio: FullPortfolioData;
 }
 
-const DB_DIR = path.join(process.cwd(), 'data');
+// Resilient storage path: use /tmp on serverless environments (Vercel/AWS Lambda) or fallback
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production' && !process.env.IS_LOCAL_SERVER);
+const DB_DIR = isServerless ? '/tmp/data' : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'db.json');
+
+// In-memory cache to guarantee zero downtime even on ephemeral/read-only environments
+let memoryCache: DatabaseSchema | null = null;
 
 // Initial baseline portfolio
 const DEFAULT_PORTFOLIO: FullPortfolioData = {
@@ -435,35 +440,45 @@ def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
   updatedAt: new Date().toISOString(),
 };
 
+function createDefaultDatabase(): DatabaseSchema {
+  const salt = bcrypt.genSaltSync(10);
+  const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+  return {
+    users: [
+      {
+        id: 'admin-1',
+        username: 'kqm0125',
+        passwordHash,
+        role: 'admin',
+        name: '김규민 (Admin)',
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    portfolio: DEFAULT_PORTFOLIO,
+  };
+}
+
 function ensureDatabase(): DatabaseSchema {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(DB_FILE)) {
-    // Generate bcrypt hash for '$$$q0125'
-    const salt = bcrypt.genSaltSync(10);
-    const passwordHash = bcrypt.hashSync('$$$q0125', salt);
-
-    const initialData: DatabaseSchema = {
-      users: [
-        {
-          id: 'admin-1',
-          username: 'kqm0125',
-          passwordHash: passwordHash,
-          role: 'admin',
-          name: '김규민 (Admin)',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      portfolio: DEFAULT_PORTFOLIO,
-    };
-
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
+  if (memoryCache) {
+    return memoryCache;
   }
 
   try {
+    if (!fs.existsSync(DB_DIR)) {
+      fs.mkdirSync(DB_DIR, { recursive: true });
+    }
+
+    if (!fs.existsSync(DB_FILE)) {
+      const initialData = createDefaultDatabase();
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
+      } catch (writeErr) {
+        console.warn('Could not write DB file to disk, using in-memory mode:', writeErr);
+      }
+      memoryCache = initialData;
+      return initialData;
+    }
+
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw) as DatabaseSchema;
     let needsSave = false;
@@ -491,28 +506,19 @@ function ensureDatabase(): DatabaseSchema {
     }
 
     if (needsSave) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+      } catch (writeErr) {
+        console.warn('Could not write updated DB file to disk:', writeErr);
+      }
     }
 
+    memoryCache = parsed;
     return parsed;
   } catch (err) {
-    console.error('Error reading DB, restoring fallback:', err);
-    const salt = bcrypt.genSaltSync(10);
-    const passwordHash = bcrypt.hashSync('$$$q0125', salt);
-    const fallback: DatabaseSchema = {
-      users: [
-        {
-          id: 'admin-1',
-          username: 'kqm0125',
-          passwordHash,
-          role: 'admin',
-          name: '김규민 (Admin)',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      portfolio: DEFAULT_PORTFOLIO,
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(fallback, null, 2), 'utf-8');
+    console.error('Filesystem access failed or read error, using in-memory database:', err);
+    const fallback = createDefaultDatabase();
+    memoryCache = fallback;
     return fallback;
   }
 }
@@ -522,8 +528,15 @@ export function getDatabase(): DatabaseSchema {
 }
 
 export function saveDatabase(data: DatabaseSchema): void {
-  ensureDatabase();
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  memoryCache = data;
+  try {
+    if (!fs.existsSync(DB_DIR)) {
+      fs.mkdirSync(DB_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Disk save failed, state kept in memory:', err);
+  }
 }
 
 export function getPublicPortfolio(): FullPortfolioData {
