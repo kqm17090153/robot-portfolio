@@ -17,6 +17,20 @@ import {
   fallbackPortfolioData,
 } from './services/api';
 
+function checkIsAdminRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+
+  return (
+    path.startsWith('/admin') ||
+    hash.startsWith('#/admin') ||
+    hash === '#admin' ||
+    search.includes('admin')
+  );
+}
+
 export default function App() {
   const [language, setLanguage] = useState<Language>('ko');
   const [bgTheme, setBgTheme] = useState<BackgroundTheme>('dots');
@@ -25,9 +39,7 @@ export default function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Routing and Auth states
-  const [currentPath, setCurrentPath] = useState<string>(() => {
-    return window.location.pathname.startsWith('/admin') ? '/admin' : '/';
-  });
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => checkIsAdminRoute());
   const [adminUser, setAdminUser] = useState<{
     id: string;
     username: string;
@@ -64,22 +76,23 @@ export default function App() {
 
     initApp();
 
-    // Listen to browser navigation (back/forward)
-    const handlePopState = () => {
-      const path = window.location.pathname.startsWith('/admin') ? '/admin' : '/';
-      setCurrentPath(path);
+    // Listen to browser navigation (back/forward and hash changes)
+    const handleRouteSync = () => {
+      setIsAdminMode(checkIsAdminRoute());
     };
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleRouteSync);
+    window.addEventListener('hashchange', handleRouteSync);
     return () => {
       isMounted = false;
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('popstate', handleRouteSync);
+      window.removeEventListener('hashchange', handleRouteSync);
     };
   }, []);
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);
-    setCurrentPath(path);
+    setIsAdminMode(checkIsAdminRoute());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -120,7 +133,7 @@ export default function App() {
   // -------------------------------------------------------------
   // If in /admin route
   // -------------------------------------------------------------
-  if (currentPath === '/admin') {
+  if (isAdminMode) {
     if (authChecking) {
       return (
         <div className="min-h-screen bg-[#070e18] flex flex-col items-center justify-center text-slate-300">
