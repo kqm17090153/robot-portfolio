@@ -20,6 +20,7 @@ import {
 import { FullPortfolioData } from '../../../server/db';
 import { savePortfolioApi, resetPortfolioApi, logoutAdminApi } from '../../services/api';
 import { SkillItem, TrialLog, TimelineEvent, Project } from '../../types';
+import { ImageUploadField } from './ImageUploadField';
 
 interface AdminDashboardProps {
   user: { id: string; username: string; name: string; role: string };
@@ -1087,33 +1088,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">제목 (English)</label>
-                        <input
-                          type="text"
-                          value={project.title.en}
-                          onChange={(e) => {
-                            const newProj = [...formData.projectsData];
-                            newProj[idx].title.en = e.target.value;
-                            setFormData({ ...formData, projectsData: newProj });
-                          }}
-                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">이미지 URL</label>
-                        <input
-                          type="text"
-                          value={project.imageUrl}
-                          onChange={(e) => {
-                            const newProj = [...formData.projectsData];
-                            newProj[idx].imageUrl = e.target.value;
-                            setFormData({ ...formData, projectsData: newProj });
-                          }}
-                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">제목 (English)</label>
+                      <input
+                        type="text"
+                        value={project.title.en}
+                        onChange={(e) => {
+                          const newProj = [...formData.projectsData];
+                          newProj[idx].title.en = e.target.value;
+                          setFormData({ ...formData, projectsData: newProj });
+                        }}
+                        className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500"
+                      />
+                    </div>
+
+                    {/* Image File Upload & Preview */}
+                    <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                      <ImageUploadField
+                        label="프로젝트 대표 이미지 (내 컴퓨터 사진 파일 선택 / 드래그)"
+                        value={project.imageUrl}
+                        onChange={(newVal) => {
+                          const newProj = [...formData.projectsData];
+                          newProj[idx].imageUrl = newVal;
+                          setFormData({ ...formData, projectsData: newProj });
+                        }}
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1176,45 +1175,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* Hardware Specs */}
                     <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-800 space-y-2">
-                      <h4 className="text-[11px] font-bold text-cyan-400">하드웨어 스펙 (Specs)</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <h4 className="text-[11px] font-bold text-cyan-400">하드웨어 및 센서 구성 (Hardware Specs)</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                         <div>
-                          <label className="block text-[10px] text-slate-400">Controller</label>
+                          <label className="block text-[10px] text-slate-400 mb-1">스파이크프라임 허브</label>
                           <input
                             type="text"
-                            value={project.specs.controller}
+                            value={project.specs.hub || project.specs.controller || ''}
                             onChange={(e) => {
                               const newProj = [...formData.projectsData];
+                              newProj[idx].specs.hub = e.target.value;
                               newProj[idx].specs.controller = e.target.value;
                               setFormData({ ...formData, projectsData: newProj });
                             }}
-                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-cyan-500"
+                            placeholder="스파이크프라임 허브"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-slate-400">Servos</label>
+                          <label className="block text-[10px] text-slate-400 mb-1">스파이크프라임 모터</label>
                           <input
                             type="text"
-                            value={project.specs.servos}
+                            value={project.specs.motors || project.specs.servos || ''}
                             onChange={(e) => {
                               const newProj = [...formData.projectsData];
+                              newProj[idx].specs.motors = e.target.value;
                               newProj[idx].specs.servos = e.target.value;
                               setFormData({ ...formData, projectsData: newProj });
                             }}
-                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-cyan-500"
+                            placeholder="스파이크프라임 모터"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] text-slate-400">Vision</label>
+                          <label className="block text-[10px] text-slate-400 mb-1">컬러센서</label>
                           <input
                             type="text"
-                            value={project.specs.vision}
+                            value={project.specs.colorSensor || project.specs.vision || ''}
                             onChange={(e) => {
                               const newProj = [...formData.projectsData];
+                              newProj[idx].specs.colorSensor = e.target.value;
                               newProj[idx].specs.vision = e.target.value;
                               setFormData({ ...formData, projectsData: newProj });
                             }}
-                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white"
+                            className="w-full px-2.5 py-1 bg-slate-950 border border-slate-700 rounded text-xs text-white outline-none focus:border-cyan-500"
+                            placeholder="컬러센서"
                           />
                         </div>
                       </div>

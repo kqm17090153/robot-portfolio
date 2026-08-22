@@ -84,11 +84,16 @@ export interface Project {
   imageUrl: string;
   tags: string[];
   specs: {
-    controller: string;
-    servos: string;
-    vision: string;
-    runtime: string;
-    power: string;
+    hub?: string;
+    motors?: string;
+    colorSensor?: string;
+    gripper?: string;
+    controller?: string;
+    servos?: string;
+    vision?: string;
+    runtime?: string;
+    power?: string;
+    [key: string]: any;
   };
   keyFeatures: {
     ko: string[];

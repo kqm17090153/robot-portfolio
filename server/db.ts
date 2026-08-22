@@ -67,11 +67,16 @@ export interface FullPortfolioData {
     imageUrl: string;
     tags: string[];
     specs: {
-      controller: string;
-      servos: string;
-      vision: string;
-      runtime: string;
-      power: string;
+      hub?: string;
+      motors?: string;
+      colorSensor?: string;
+      gripper?: string;
+      controller?: string;
+      servos?: string;
+      vision?: string;
+      runtime?: string;
+      power?: string;
+      [key: string]: any;
     };
     keyFeatures: {
       ko: string[];
@@ -415,11 +420,15 @@ def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
       imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1000&q=80',
       tags: ['Computer Vision', 'Inverse Kinematics', 'Python', 'OpenCV', 'Closed-Loop Servo'],
       specs: {
-        controller: 'ESP32-S3 Dual-Core + Python Host',
-        servos: '4x Metal Gear High-Torque 25kg·cm',
-        vision: 'HSV Color Segmentation & Centroid Tracking',
+        hub: '스파이크프라임 허브 (6-Port / Gyro)',
+        motors: '스파이크프라임 모터 (3x Angular)',
+        colorSensor: '컬러센서 (RGB / Color detection)',
+        gripper: '초음파 거리센서 & 기어드 그리퍼',
+        controller: '스파이크프라임 허브',
+        servos: '스파이크프라임 모터 (x3)',
+        vision: '고감도 컬러센서 (RGB 탐지)',
         runtime: 'MicroPython Embedded Firmware',
-        power: '7.4V 2S LiPo 2200mAh Dedicated Rail',
+        power: '7.4V 충전식 Li-ion 배터리',
       },
       keyFeatures: {
         ko: [

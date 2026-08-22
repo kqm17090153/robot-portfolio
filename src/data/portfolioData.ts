@@ -371,11 +371,15 @@ export const projectsData: Project[] = [
     imageUrl: redTowerImg,
     tags: ['Computer Vision', 'Inverse Kinematics', 'Python', 'OpenCV', 'Closed-Loop Servo'],
     specs: {
-      controller: 'ESP32-S3 Dual-Core + Python Host',
-      servos: '4x Metal Gear High-Torque 25kg·cm',
-      vision: 'HSV Color Segmentation & Centroid Tracking',
+      hub: '스파이크프라임 허브 (6-Port / Gyro)',
+      motors: '스파이크프라임 모터 (3x Angular)',
+      colorSensor: '컬러센서 (RGB / Color detection)',
+      gripper: '초음파 거리센서 & 기어드 그리퍼',
+      controller: '스파이크프라임 허브',
+      servos: '스파이크프라임 모터 (x3)',
+      vision: '고감도 컬러센서 (RGB 탐지)',
       runtime: 'MicroPython Embedded Firmware',
-      power: '7.4V 2S LiPo 2200mAh Dedicated Rail',
+      power: '7.4V 충전식 Li-ion 배터리',
     },
     keyFeatures: {
       ko: [

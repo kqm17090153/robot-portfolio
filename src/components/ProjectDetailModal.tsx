@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CheckCircle2, Cpu, FileCode2, Layers, Zap } from 'lucide-react';
+import { X, Cpu, FileCode2, Layers } from 'lucide-react';
 import { Language, Project } from '../types';
 
 interface ProjectDetailModalProps {
@@ -79,52 +79,33 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
               <Cpu className="w-4 h-4 text-cyan-500" />
-              <span>{isKo ? '하드웨어 & 기구 스펙' : 'Hardware & Kinematic Specs'}</span>
+              <span>{isKo ? '하드웨어 구성 및 센서 스펙' : 'Hardware & Sensor Specs'}</span>
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-                <span className="text-[11px] text-slate-400 font-medium block">DOF</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono">
-                  {project.specs.dof}
+                <span className="text-[11px] text-slate-400 font-medium block">
+                  {isKo ? '스파이크프라임 허브' : 'SPIKE Prime Hub'}
+                </span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono truncate block" title={project.specs.hub || project.specs.controller || '스파이크프라임 허브'}>
+                  {project.specs.hub || project.specs.controller || '스파이크프라임 허브'}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-                <span className="text-[11px] text-slate-400 font-medium block">MCU</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono truncate block">
-                  {project.specs.mcu}
+                <span className="text-[11px] text-slate-400 font-medium block">
+                  {isKo ? '스파이크프라임 모터' : 'SPIKE Motors'}
+                </span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono truncate block" title={project.specs.motors || project.specs.servos || '스파이크프라임 모터'}>
+                  {project.specs.motors || project.specs.servos || '스파이크프라임 모터'}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-                <span className="text-[11px] text-slate-400 font-medium block">Repeatability</span>
-                <span className="text-sm font-bold text-cyan-600 dark:text-cyan-400 font-mono">
-                  {project.specs.repeatability}
+                <span className="text-[11px] text-slate-400 font-medium block">
+                  {isKo ? '컬러센서' : 'Color Sensor'}
+                </span>
+                <span className="text-sm font-bold text-cyan-600 dark:text-cyan-400 font-mono truncate block" title={project.specs.colorSensor || project.specs.vision || '컬러센서'}>
+                  {project.specs.colorSensor || project.specs.vision || '컬러센서'}
                 </span>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60">
-                <span className="text-[11px] text-slate-400 font-medium block">Payload</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 font-mono">
-                  {project.specs.payload}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Key Features List */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-cyan-500" />
-              <span>{isKo ? '핵심 제어 알고리즘 및 특징' : 'Key Algorithms & Features'}</span>
-            </h4>
-            <div className="space-y-2">
-              {project.keyFeatures[language].map((feature, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
-                  <span>{feature}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>

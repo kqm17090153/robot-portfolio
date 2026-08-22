@@ -15,7 +15,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'robotfolio-secret-key-2026-wro-adm
 export function createApp() {
   const app = express();
 
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '25mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
   app.use(cookieParser());
 
   // Helper Auth Middleware
