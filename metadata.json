@@ -1,0 +1,6 @@
+{
+  "name": "Robotfolio",
+  "description": "2026 WRO Robotics Engineering Portfolio, Technical Skills, and Trial & Error Logs",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

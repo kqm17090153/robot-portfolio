@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Background Patterns matching Image 4 (Dot Matrix Grid) and Image 6 (Seigaiha Waves) */
+.bg-dot-pattern {
+  background-color: #fafcfe;
+  background-image: radial-gradient(circle, #00d2ff28 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+}
+
+.bg-seigaiha-pattern {
+  background-color: #f7fafc;
+  background-image: 
+    radial-gradient(circle at 100% 150%, #f7fafc 24%, #00b4d812 25%, #00b4d812 28%, #f7fafc 29%, #f7fafc 36%, #00b4d812 37%, #00b4d812 40%, #f7fafc 41%, #f7fafc 48%, #00b4d812 49%, #00b4d812 52%, #f7fafc 53%, #f7fafc 60%, #00b4d812 61%, #00b4d812 64%, #f7fafc 65%),
+    radial-gradient(circle at 0% 150%, #f7fafc 24%, #00b4d812 25%, #00b4d812 28%, #f7fafc 29%, #f7fafc 36%, #00b4d812 37%, #00b4d812 40%, #f7fafc 41%, #f7fafc 48%, #00b4d812 49%, #00b4d812 52%, #f7fafc 53%, #f7fafc 60%, #00b4d812 61%, #00b4d812 64%, #f7fafc 65%),
+    radial-gradient(circle at 50% 100%, #f7fafc 10%, #00b4d812 11%, #00b4d812 14%, #f7fafc 15%, #f7fafc 22%, #00b4d812 23%, #00b4d812 26%, #f7fafc 27%, #f7fafc 34%, #00b4d812 35%, #00b4d812 38%, #f7fafc 39%, #f7fafc 46%, #00b4d812 47%, #00b4d812 50%, #f7fafc 51%),
+    radial-gradient(circle at 100% 50%, #f7fafc 5%, #00b4d812 6%, #00b4d812 9%, #f7fafc 10%, #f7fafc 17%, #00b4d812 18%, #00b4d812 21%, #f7fafc 22%, #f7fafc 29%, #00b4d812 30%, #00b4d812 33%, #f7fafc 34%, #f7fafc 41%, #00b4d812 42%, #00b4d812 45%, #f7fafc 46%),
+    radial-gradient(circle at 0% 50%, #f7fafc 5%, #00b4d812 6%, #00b4d812 9%, #f7fafc 10%, #f7fafc 17%, #00b4d812 18%, #00b4d812 21%, #f7fafc 22%, #f7fafc 29%, #00b4d812 30%, #00b4d812 33%, #f7fafc 34%, #f7fafc 41%, #00b4d812 42%, #00b4d812 45%, #f7fafc 46%);
+  background-size: 80px 40px;
+}
+
+.bg-dark-neon {
+  background-color: #060d17;
+  background-image: radial-gradient(circle, #00d2ff18 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glowing text & border utilities */
+.glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 210, 255, 0.4), 0 0 20px rgba(0, 210, 255, 0.2);
+}
+
+.glow-cyan-box {
+  box-shadow: 0 0 20px -3px rgba(0, 210, 255, 0.25), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.glow-border {
+  box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.35), 0 0 16px -2px rgba(0, 210, 255, 0.2);
+}
+
+/* Card hover lift effect */
+.card-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(0, 180, 216, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.04);
+}

@@ -1,0 +1,558 @@
+import fs from 'fs';
+import path from 'path';
+import bcrypt from 'bcryptjs';
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  passwordHash: string;
+  role: 'admin';
+  name: string;
+  createdAt: string;
+}
+
+export interface FullPortfolioData {
+  heroContent: {
+    badge: { ko: string; en: string };
+    headline: {
+      ko: { prefix: string; highlight: string };
+      en: { prefix: string; highlight: string };
+    };
+    bioItems: Array<{
+      id: string;
+      icon: string;
+      text: { ko: string; en: string };
+      detail: { ko: string; en: string };
+    }>;
+    cta: {
+      viewProjects: { ko: string; en: string };
+      simulation: { ko: string; en: string };
+    };
+  };
+  skillsData: Array<{
+    id: string;
+    name: string;
+    iconType: 'code' | 'robot' | 'motor';
+    shortDesc: { ko: string; en: string };
+    fullDesc: { ko: string; en: string };
+    tags: string[];
+    codeLanguage?: string;
+    codeSnippet?: string;
+  }>;
+  trialLogsData: Array<{
+    id: string;
+    type: 'success' | 'reflection' | 'note';
+    title: { ko: string; en: string };
+    quotes: { ko: string[]; en: string[] };
+    reflectionDetail?: { ko: string; en: string };
+  }>;
+  timelineEventsData: Array<{
+    id: string;
+    tagType?: 'prep' | 'trial' | 'competition';
+    phase: { ko: string; en: string };
+    title: { ko: string; en: string };
+    description: { ko: string; en: string };
+    highlightBox: {
+      label: { ko: string; en: string };
+      content: { ko: string; en: string };
+    };
+  }>;
+  projectsData: Array<{
+    id: string;
+    title: { ko: string; en: string };
+    version: string;
+    category: { ko: string; en: string };
+    shortSummary: { ko: string; en: string };
+    fullDescription: { ko: string; en: string };
+    imageUrl: string;
+    tags: string[];
+    specs: {
+      controller: string;
+      servos: string;
+      vision: string;
+      runtime: string;
+      power: string;
+    };
+    keyFeatures: {
+      ko: string[];
+      en: string[];
+    };
+  }>;
+  updatedAt: string;
+}
+
+interface DatabaseSchema {
+  users: UserAccount[];
+  portfolio: FullPortfolioData;
+}
+
+const DB_DIR = path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DB_DIR, 'db.json');
+
+// Initial baseline portfolio
+const DEFAULT_PORTFOLIO: FullPortfolioData = {
+  heroContent: {
+    badge: {
+      ko: 'my robot portfolio',
+      en: 'MY ROBOT PORTFOLIO',
+    },
+    headline: {
+      ko: {
+        prefix: '나의 로봇 ',
+        highlight: '포트폴리오',
+      },
+      en: {
+        prefix: 'MY ROBOT ',
+        highlight: 'PORTFOLIO',
+      },
+    },
+    bioItems: [
+      {
+        id: 'growth',
+        icon: 'pin',
+        text: {
+          ko: '여러 시도로 성장하는 사람',
+          en: 'Growing through continuous experimentation',
+        },
+        detail: {
+          ko: '로봇을 만드는 것은 실패하고 그로부터 배우는 과정입니다. 모든 실패한 회로는 작동하는 프로토타입에 한 걸음 더 가까워지는 단계입니다.',
+          en: 'Building robots is about making mistakes and learning from them. Every failed circuit is a step closer to a working prototype.',
+        },
+      },
+      {
+        id: 'goal',
+        icon: 'flag',
+        text: {
+          ko: '목표: 포기하지 않고 계속 도전하는 것',
+          en: 'Goal: Never giving up and constantly pushing forward',
+        },
+        detail: {
+          ko: '경기장 위에서 발생하는 예상치 못한 변수 앞에서도 끝까지 문제 원인을 분석하고 해결책을 찾아냅니다.',
+          en: 'Facing unexpected variables on the field, persistently analyzing root causes and engineering reliable solutions.',
+        },
+      },
+    ],
+    cta: {
+      viewProjects: {
+        ko: 'VIEW PROJECTS',
+        en: 'VIEW PROJECTS',
+      },
+      simulation: {
+        ko: '로봇 팔 시뮬레이션',
+        en: 'Robot Arm Sim',
+      },
+    },
+  },
+  skillsData: [
+    {
+      id: 'micropython',
+      name: 'MicroPython',
+      iconType: 'code',
+      shortDesc: {
+        ko: 'Hardware programming and logic control scripting.',
+        en: 'Programming logic for microcontrollers and sensors to bring hardware to life.',
+      },
+      fullDesc: {
+        ko: 'ESP32 및 마이크로컨트롤러 환경에서 센서 제어 알고리즘, UART/I2C 통신, 비동기 모터 구동 루프 및 상태 머신(FSM)을 구현합니다.',
+        en: 'Implemented sensor control algorithms, UART/I2C protocols, asynchronous motor control loops, and Finite State Machines (FSM) on ESP32 microcontrollers.',
+      },
+      tags: ['ESP32', 'Sensors', 'Control Logic', 'I2C/SPI'],
+      codeLanguage: 'python',
+      codeSnippet: `# WRO Autonomous Line Tracking & Color Classification
+from machine import Pin, PWM, I2C
+import time
+
+class ColorSensorTCS:
+    def __init__(self, i2c, addr=0x29):
+        self.i2c = i2c
+        self.addr = addr
+        self.enable()
+
+    def enable(self):
+        self.i2c.writeto_mem(self.addr, 0x80 | 0x00, bytes([0x03]))
+
+    def read_rgb(self):
+        data = self.i2c.readfrom_mem(self.addr, 0x80 | 0x14, 8)
+        clear = data[1] << 8 | data[0]
+        red   = data[3] << 8 | data[2]
+        green = data[5] << 8 | data[4]
+        blue  = data[7] << 8 | data[6]
+        return (red, green, blue, clear)
+
+# PID Loop for Line Tracking
+def compute_pid_steer(error, prev_error, integral, Kp=1.8, Ki=0.04, Kd=0.65):
+    integral += error
+    derivative = error - prev_error
+    correction = (Kp * error) + (Ki * integral) + (Kd * derivative)
+    return correction, error, integral`,
+    },
+    {
+      id: 'robot-building',
+      name: 'Robot Building',
+      iconType: 'robot',
+      shortDesc: {
+        ko: 'Structural assembly, wiring, and component integration.',
+        en: 'Assembling chassis, wiring circuits, and integrating mechanical components.',
+      },
+      fullDesc: {
+        ko: 'CAD 기반 3D 프린팅 섀시 설계, 저중심 기구부 배치, 노이즈 방지 배선 정리, 퀵 커넥트 모듈러 수리 구조를 설계 및 제작합니다.',
+        en: 'CAD-based 3D structural design, low center-of-gravity chassis distribution, shielded cable routing, and quick-disconnect modular repair architecture.',
+      },
+      tags: ['Hardware', 'Soldering', 'Chassis 3D', 'Power Rail'],
+      codeLanguage: 'json',
+      codeSnippet: `// Hardware Specification & Pinout Mapping
+{
+  "chassis": "Custom PETG 3D Printed Modular Frame",
+  "controller": "ESP32-S3 Dual Core 240MHz",
+  "drivetrain": {
+    "motors": "2x 12V 430RPM Metal Gear Encoders",
+    "driver": "Dual H-Bridge MOSFET 10A Peak",
+    "reduction_ratio": "1:30"
+  },
+  "manipulator": {
+    "dof": 4,
+    "servos": "High Torque 25kg/cm Digital Metal Gear",
+    "gripper": "Parallel Claw with Silicone Grip Pads"
+  }
+}`,
+    },
+    {
+      id: 'motor-control',
+      name: 'Motor Control',
+      iconType: 'motor',
+      shortDesc: {
+        ko: 'Precise movement calibration and power distribution.',
+        en: 'Precise manipulation of servo and DC motors for complex movements and mobility.',
+      },
+      fullDesc: {
+        ko: '엔코더 피드백 기반 속도/위치 제어, 부드러운 가감속 프로파일링(S-Curve), 기구학(Kinematics) 기반 다관절 서보 각도 연산을 수행합니다.',
+        en: 'Encoder feedback closed-loop position control, trapezoidal and S-curve acceleration profiling, and trigonometric inverse kinematics for articulated joints.',
+      },
+      tags: ['Servos', 'Kinematics', 'PWM Control', 'PID Loop'],
+      codeLanguage: 'python',
+      codeSnippet: `import math
+
+def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
+    """Calculates shoulder & elbow joint angles for target (x, y) coordinates (mm)"""
+    r = math.sqrt(target_x**2 + target_y**2)
+    if r > (l1 + l2) or r < abs(l1 - l2):
+        return None  # Target out of reachable workspace
+        
+    # Law of Cosines for Elbow Angle (theta2)
+    cos_theta2 = (target_x**2 + target_y**2 - l1**2 - l2**2) / (2 * l1 * l2)
+    cos_theta2 = max(-1.0, min(1.0, cos_theta2))
+    theta2 = math.acos(cos_theta2)
+    
+    # Shoulder Angle (theta1)
+    k1 = l1 + l2 * math.cos(theta2)
+    k2 = l2 * math.sin(theta2)
+    theta1 = math.atan2(target_y, target_x) - math.atan2(k2, k1)
+    
+    return math.degrees(theta1), math.degrees(theta2)`,
+    },
+  ],
+  trialLogsData: [
+    {
+      id: 'quick-repairs',
+      type: 'success',
+      title: {
+        ko: 'Quick Repairs',
+        en: 'Quick Repairs',
+      },
+      quotes: {
+        ko: ['"빠른 속도로 로봇을 수리했다."'],
+        en: ['"Repaired the robot at rapid speed under match countdown."'],
+      },
+      reflectionDetail: {
+        ko: '경기 중 발생한 커넥터 이탈을 1분 이내에 진단하고 백업 케이블로 신속하게 교체하여 다음 라운드에 정상 진입했습니다.',
+        en: 'Diagnosed a disconnected harness connector within 60 seconds and swapped in a pre-crimped backup harness to safely clear the next run.',
+      },
+    },
+    {
+      id: 'motor-replacement',
+      type: 'reflection',
+      title: {
+        ko: 'Motor Replacement Strategy',
+        en: 'Motor Replacement Strategy',
+      },
+      quotes: {
+        ko: [
+          '"조금 더 신중하게 생각해서 모터를 양쪽 다 바꿨다면 점수가 150점은 넘겼을 것 같다."',
+          '"바꾼 모터로 테스트를 했었다면 오류는 잡을 수 있었을 것 같다."',
+        ],
+        en: [
+          '"If I had thought more carefully and replaced both drive motors as a paired set, we could have comfortably exceeded 150 points."',
+          '"If we had run a calibration test cycle with the newly installed motor before the run, we would have caught the drift error in advance."',
+        ],
+      },
+      reflectionDetail: {
+        ko: '좌우 모터 마모도 불균형으로 인한 직선 주행 편차 발생. 향후 모터 교체 시 반드시 페어 교체 및 즉각적인 엔코더 캘리브레이션을 표준 프로토콜로 수립했습니다.',
+        en: 'Uneven motor wear caused straight-line tracking drift. Established mandatory paired motor replacement and immediate encoder re-calibration protocols.',
+      },
+    },
+    {
+      id: 'battery-management',
+      type: 'note',
+      title: {
+        ko: 'Battery Management',
+        en: 'Battery Management',
+      },
+      quotes: {
+        ko: ['"마지막에 배터리가 90% 정도 남았었는데 그것도 교체를 해야됬었던 것 같다."'],
+        en: ['"Even though the battery still showed around 90% capacity near the end, we should have swapped to a fresh pack."'],
+      },
+      reflectionDetail: {
+        ko: '90% 잔량에서도 서보 모터 피크 토크 동작 시 순간 전압 강하(Voltage Sag)가 발생하여 로봇 팔 위치 오차를 유발함을 학습했습니다. 매 라운드 무조건 완충 배터리 투입 원칙 확립.',
+        en: 'Learned that under peak servo torque loads, instantaneous voltage sag can alter arm trajectory even at 90% SoC. Established a fresh-pack-per-round competition rule.',
+      },
+    },
+  ],
+  timelineEventsData: [
+    {
+      id: 'prep-phase',
+      tagType: 'prep',
+      phase: {
+        ko: 'Preparation Phase',
+        en: 'Preparation Phase',
+      },
+      title: {
+        ko: '팀 구성 및 전략 수립 (Team Assembly & Planning)',
+        en: 'Team Assembly & Planning',
+      },
+      description: {
+        ko: '3인 팀을 결성하고 자율 주행 내비게이션 및 미션 오브젝트 수거 전략의 핵심 아키텍처를 정의했습니다.',
+        en: 'Formed a team of 3. Defined the core strategy for the autonomous navigation and object retrieval challenge.',
+      },
+      highlightBox: {
+        label: {
+          ko: 'Role',
+          en: 'Role',
+        },
+        content: {
+          ko: 'Lead Programmer & Hardware Integrator (메인 제어 소프트웨어 개발 및 하드웨어 조립)',
+          en: 'Lead Programmer & Hardware Integrator',
+        },
+      },
+    },
+    {
+      id: 'trial-sensor',
+      tagType: 'trial',
+      phase: {
+        ko: 'Trial & Error',
+        en: 'Trial & Error',
+      },
+      title: {
+        ko: '센서 캘리브레이션 이슈 (Sensor Calibration Issues)',
+        en: 'Sensor Calibration Issues',
+      },
+      description: {
+        ko: '경기장 조명 환경 변화에 따라 컬러 및 라인 센서 값이 불규칙하게 튀는 문제에 직면했습니다.',
+        en: 'Struggled with inconsistent readings from the color sensors under varied arena lighting conditions.',
+      },
+      highlightBox: {
+        label: {
+          ko: 'Reflection',
+          en: 'Reflection',
+        },
+        content: {
+          ko: '외광 차단 3D 셰이드 구조의 중요성을 깨닫고 소프트웨어에 이동 평균 필터(Rolling Average Filter)와 다이내믹 화이트 밸런스를 적용했습니다.',
+          en: 'Realized the importance of ambient light shielding and implementing rolling average filters with dynamic calibration in code.',
+        },
+      },
+    },
+    {
+      id: 'comp-day',
+      tagType: 'competition',
+      phase: {
+        ko: 'Competition Day',
+        en: 'Competition Day',
+      },
+      title: {
+        ko: '성공적인 본선 주행 (Successful Run)',
+        en: 'Successful Run',
+      },
+      description: {
+        ko: '로봇이 메인 주행 코스를 안정적으로 완주하며 미세한 모터 부하 상황 속에서도 1차 주요 미션을 완수했습니다.',
+        en: 'The robot successfully navigated the course, completing all primary objectives despite a minor motor stall.',
+      },
+      highlightBox: {
+        label: {
+          ko: 'Result',
+          en: 'Result',
+        },
+        content: {
+          ko: '지역 예선 4위 달성. 실전 압박 속에서 견고한 기계적 설계와 신속한 현장 대응의 가치를 배웠습니다.',
+          en: 'Placed 4th regionally. Learned invaluable lessons on robust mechanical design and high-pressure troubleshooting.',
+        },
+      },
+    },
+  ],
+  projectsData: [
+    {
+      id: 'red-tower',
+      title: {
+        ko: 'Red Tower',
+        en: 'Red Tower Stacker',
+      },
+      version: 'V1.0',
+      category: {
+        ko: 'Arm Controlling',
+        en: 'Arm Controlling',
+      },
+      shortSummary: {
+        ko: '빨간 탑 앞에 정렬해서 팔로 빨간 탑을 들어올린다.',
+        en: 'An autonomous robotic arm programmed to identify, pick up, and stack red structural blocks using basic computer vision and precise servo control.',
+      },
+      fullDescription: {
+        ko: '카메라 기반 색상 인식 및 초음파 거리 센서를 조합하여 빨간색 블록 타워를 정확히 탐지하고, 4축 다관절 로봇 팔의 역기구학 연산을 통해 대상물을 안전하게 파지하여 지정된 타겟 위치에 정밀하게 적재하는 자율 로봇 매니퓰레이터 시스템입니다.',
+        en: 'An integrated autonomous robotic manipulator combining computer vision color detection, ultrasonic ranging, and 4-axis inverse kinematics to detect, grip, lift, and stack structural red block modules onto precision target fixtures.',
+      },
+      imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1000&q=80',
+      tags: ['Computer Vision', 'Inverse Kinematics', 'Python', 'OpenCV', 'Closed-Loop Servo'],
+      specs: {
+        controller: 'ESP32-S3 Dual-Core + Python Host',
+        servos: '4x Metal Gear High-Torque 25kg·cm',
+        vision: 'HSV Color Segmentation & Centroid Tracking',
+        runtime: 'MicroPython Embedded Firmware',
+        power: '7.4V 2S LiPo 2200mAh Dedicated Rail',
+      },
+      keyFeatures: {
+        ko: [
+          'HSV 색 공간 필터링을 통한 흔들림 없는 빨간색 블록 타워 위치 인식',
+          '2차원 역기구학(2D-IK) 수학 모델을 통한 부드러운 아크 궤적 리프팅',
+          '그리퍼에 실리콘 댐핑 패드를 부착하여 미끄러짐 없는 파지력 확보',
+          '비상 정지 및 소프트웨어 리미트 각도 보호 로직 내장',
+        ],
+        en: [
+          'Robust HSV color-space thresholding to track centroid of red target blocks',
+          '2D Inverse Kinematics analytical solver generating smooth curved lift paths',
+          'Silicone-damped parallel claw gripper providing slip-proof block retention',
+          'Built-in software joint limit protection and stall current monitoring',
+        ],
+      },
+    },
+  ],
+  updatedAt: new Date().toISOString(),
+};
+
+function ensureDatabase(): DatabaseSchema {
+  if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+  }
+
+  if (!fs.existsSync(DB_FILE)) {
+    // Generate bcrypt hash for '$$$q0125'
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+
+    const initialData: DatabaseSchema = {
+      users: [
+        {
+          id: 'admin-1',
+          username: 'kqm0125',
+          passwordHash: passwordHash,
+          role: 'admin',
+          name: '김규민 (Admin)',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      portfolio: DEFAULT_PORTFOLIO,
+    };
+
+    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
+    return initialData;
+  }
+
+  try {
+    const raw = fs.readFileSync(DB_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as DatabaseSchema;
+    let needsSave = false;
+
+    // Check admin account
+    const adminUser = parsed.users?.find((u) => u.username === 'kqm0125');
+    if (!adminUser) {
+      const salt = bcrypt.genSaltSync(10);
+      const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+      if (!parsed.users) parsed.users = [];
+      parsed.users.push({
+        id: 'admin-1',
+        username: 'kqm0125',
+        passwordHash,
+        role: 'admin',
+        name: '김규민 (Admin)',
+        createdAt: new Date().toISOString(),
+      });
+      needsSave = true;
+    }
+
+    if (!parsed.portfolio || !parsed.portfolio.heroContent) {
+      parsed.portfolio = DEFAULT_PORTFOLIO;
+      needsSave = true;
+    }
+
+    if (needsSave) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error('Error reading DB, restoring fallback:', err);
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+    const fallback: DatabaseSchema = {
+      users: [
+        {
+          id: 'admin-1',
+          username: 'kqm0125',
+          passwordHash,
+          role: 'admin',
+          name: '김규민 (Admin)',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      portfolio: DEFAULT_PORTFOLIO,
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(fallback, null, 2), 'utf-8');
+    return fallback;
+  }
+}
+
+export function getDatabase(): DatabaseSchema {
+  return ensureDatabase();
+}
+
+export function saveDatabase(data: DatabaseSchema): void {
+  ensureDatabase();
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+export function getPublicPortfolio(): FullPortfolioData {
+  const db = getDatabase();
+  return db.portfolio;
+}
+
+export function updatePortfolioData(newPortfolio: Partial<FullPortfolioData>): FullPortfolioData {
+  const db = getDatabase();
+  db.portfolio = {
+    ...db.portfolio,
+    ...newPortfolio,
+    updatedAt: new Date().toISOString(),
+  };
+  saveDatabase(db);
+  return db.portfolio;
+}
+
+export function resetPortfolioToDefault(): FullPortfolioData {
+  const db = getDatabase();
+  db.portfolio = {
+    ...DEFAULT_PORTFOLIO,
+    updatedAt: new Date().toISOString(),
+  };
+  saveDatabase(db);
+  return db.portfolio;
+}
+
+export function findUserByUsername(username: string): UserAccount | undefined {
+  const db = getDatabase();
+  return db.users.find((u) => u.username === username);
+}
