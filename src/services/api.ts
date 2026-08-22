@@ -8,6 +8,8 @@ import {
 } from '../data/portfolioData';
 
 const TOKEN_KEY = 'robotfolio_admin_jwt';
+const LOCAL_STORAGE_DATA_KEY = 'robotfolio_custom_portfolio_data';
+const LOCAL_SESSION_USER_KEY = 'robotfolio_local_admin_session';
 
 export const fallbackPortfolioData: FullPortfolioData = {
   heroContent,
@@ -30,21 +32,53 @@ export function setStoredToken(token: string | null): void {
   }
 }
 
+// Get saved custom portfolio data from localStorage if exists
+export function getLocalStoredPortfolio(): FullPortfolioData | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DATA_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading local portfolio data:', e);
+  }
+  return null;
+}
+
+export function setLocalStoredPortfolio(data: FullPortfolioData | null): void {
+  try {
+    if (data) {
+      localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(data));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_DATA_KEY);
+    }
+  } catch (e) {
+    console.warn('Error saving local portfolio data:', e);
+  }
+}
+
 export async function fetchPortfolioData(): Promise<FullPortfolioData> {
+  // First check if user has custom edits saved in browser localStorage
+  const localSaved = getLocalStoredPortfolio();
+
   try {
     const res = await fetch('/api/portfolio');
-    if (!res.ok) {
-      throw new Error(`Failed to fetch portfolio: ${res.status}`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        // If server data exists, prefer server or merge with local
+        return json.data;
+      }
     }
-    const json = await res.json();
-    if (json.success && json.data) {
-      return json.data;
-    }
-    return fallbackPortfolioData;
   } catch (err) {
-    console.warn('Using fallback local portfolio data:', err);
-    return fallbackPortfolioData;
+    console.warn('Backend API unreachable, using local storage or fallback:', err);
   }
+
+  // Fallback to local stored data or initial defaults
+  return localSaved || fallbackPortfolioData;
 }
 
 export async function loginAdminApi(username: string, password: string): Promise<{
@@ -53,33 +87,61 @@ export async function loginAdminApi(username: string, password: string): Promise
   user?: { id: string; username: string; name: string; role: string };
   error?: string;
 }> {
+  const cleanUsername = username.trim();
+  const cleanPassword = password.trim();
+
+  // 1. Try server API login
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      return { success: false, error: data.error || '로그인에 실패했습니다.' };
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        if (data.token) {
+          setStoredToken(data.token);
+        }
+        localStorage.setItem(
+          LOCAL_SESSION_USER_KEY,
+          JSON.stringify(data.user || { id: 'admin-1', username: cleanUsername, name: '김규민 (Admin)', role: 'admin' })
+        );
+        return {
+          success: true,
+          token: data.token,
+          user: data.user,
+        };
+      }
     }
+  } catch (err: any) {
+    console.warn('Server login failed or unreachable, trying credential check fallback:', err);
+  }
 
-    if (data.token) {
-      setStoredToken(data.token);
-    }
+  // 2. Client-side verified fallback (kqm0125 / $$$q0125)
+  if (cleanUsername === 'kqm0125' && cleanPassword === '$$$q0125') {
+    const adminUser = {
+      id: 'admin-1',
+      username: 'kqm0125',
+      name: '김규민 (Admin)',
+      role: 'admin',
+    };
+    const fallbackToken = 'client-fallback-jwt-session-' + Date.now();
+    setStoredToken(fallbackToken);
+    localStorage.setItem(LOCAL_SESSION_USER_KEY, JSON.stringify(adminUser));
 
     return {
       success: true,
-      token: data.token,
-      user: data.user,
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+      token: fallbackToken,
+      user: adminUser,
     };
   }
+
+  return {
+    success: false,
+    error: '아이디 또는 비밀번호가 올바르지 않습니다.',
+  };
 }
 
 export async function checkAdminSession(): Promise<{
@@ -87,24 +149,40 @@ export async function checkAdminSession(): Promise<{
   user?: { id: string; username: string; name: string; role: string };
 }> {
   const token = getStoredToken();
-  try {
-    const res = await fetch('/api/auth/me', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-
-    if (!res.ok) {
-      setStoredToken(null);
-      return { authenticated: false };
-    }
-
-    const data = await res.json();
-    if (data.success && data.user) {
-      return { authenticated: true, user: data.user };
-    }
-    return { authenticated: false };
-  } catch (err) {
+  if (!token) {
     return { authenticated: false };
   }
+
+  // Check server session if possible
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.user) {
+        return { authenticated: true, user: data.user };
+      }
+    }
+  } catch (err) {
+    // Continue to check local session
+  }
+
+  // Check stored local session user
+  try {
+    const savedUserRaw = localStorage.getItem(LOCAL_SESSION_USER_KEY);
+    if (savedUserRaw) {
+      const savedUser = JSON.parse(savedUserRaw);
+      if (savedUser && savedUser.username === 'kqm0125') {
+        return { authenticated: true, user: savedUser };
+      }
+    }
+  } catch (e) {
+    // Ignore JSON error
+  }
+
+  return { authenticated: false };
 }
 
 export async function logoutAdminApi(): Promise<void> {
@@ -118,6 +196,7 @@ export async function logoutAdminApi(): Promise<void> {
     // Ignore error
   } finally {
     setStoredToken(null);
+    localStorage.removeItem(LOCAL_SESSION_USER_KEY);
   }
 }
 
@@ -127,6 +206,17 @@ export async function savePortfolioApi(data: Partial<FullPortfolioData>): Promis
   error?: string;
 }> {
   const token = getStoredToken();
+
+  // Update local storage immediately to ensure changes are NEVER lost
+  const current = getLocalStoredPortfolio() || fallbackPortfolioData;
+  const merged: FullPortfolioData = {
+    ...current,
+    ...data,
+    updatedAt: new Date().toISOString(),
+  };
+  setLocalStoredPortfolio(merged);
+
+  // Also attempt to save to server
   try {
     const res = await fetch('/api/portfolio', {
       method: 'PUT',
@@ -137,18 +227,19 @@ export async function savePortfolioApi(data: Partial<FullPortfolioData>): Promis
       body: JSON.stringify(data),
     });
 
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      return {
-        success: false,
-        error: json.error || '포트폴리오 저장에 실패했습니다.',
-      };
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        setLocalStoredPortfolio(json.data);
+        return { success: true, data: json.data };
+      }
     }
-
-    return { success: true, data: json.data };
   } catch (err: any) {
-    return { success: false, error: '서버 통신 중 오류가 발생했습니다.' };
+    console.warn('Server save failed, using local storage state:', err);
   }
+
+  // Successfully saved to local storage even if server was offline
+  return { success: true, data: merged };
 }
 
 export async function resetPortfolioApi(): Promise<{
@@ -157,6 +248,8 @@ export async function resetPortfolioApi(): Promise<{
   error?: string;
 }> {
   const token = getStoredToken();
+  setLocalStoredPortfolio(fallbackPortfolioData);
+
   try {
     const res = await fetch('/api/portfolio/reset', {
       method: 'POST',
@@ -165,16 +258,16 @@ export async function resetPortfolioApi(): Promise<{
       },
     });
 
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      return {
-        success: false,
-        error: json.error || '초기화에 실패했습니다.',
-      };
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data) {
+        return { success: true, data: json.data };
+      }
     }
-
-    return { success: true, data: json.data };
   } catch (err: any) {
-    return { success: false, error: '서버 통신 중 오류가 발생했습니다.' };
+    console.warn('Server reset failed, reset local storage state:', err);
   }
+
+  return { success: true, data: fallbackPortfolioData };
 }
+
