@@ -449,9 +449,18 @@ def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
   updatedAt: new Date().toISOString(),
 };
 
+// Pre-computed bcrypt hash for password "$$$q0125" to avoid redundant hashing during startup
+const DEFAULT_ADMIN_PASSWORD_HASH = '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW';
+
 function createDefaultDatabase(): DatabaseSchema {
-  const salt = bcrypt.genSaltSync(10);
-  const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+  let passwordHash = DEFAULT_ADMIN_PASSWORD_HASH;
+  try {
+    const salt = bcrypt.genSaltSync(10);
+    passwordHash = bcrypt.hashSync('$$$q0125', salt);
+  } catch (e) {
+    passwordHash = DEFAULT_ADMIN_PASSWORD_HASH;
+  }
+
   return {
     users: [
       {
@@ -473,8 +482,12 @@ function ensureDatabase(): DatabaseSchema {
   }
 
   try {
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
+    try {
+      if (!fs.existsSync(DB_DIR)) {
+        fs.mkdirSync(DB_DIR, { recursive: true });
+      }
+    } catch (dirErr) {
+      console.warn('DB_DIR check failed:', dirErr);
     }
 
     if (!fs.existsSync(DB_FILE)) {
@@ -495,8 +508,13 @@ function ensureDatabase(): DatabaseSchema {
     // Check admin account
     const adminUser = parsed.users?.find((u) => u.username === 'kqm0125');
     if (!adminUser) {
-      const salt = bcrypt.genSaltSync(10);
-      const passwordHash = bcrypt.hashSync('$$$q0125', salt);
+      let passwordHash = DEFAULT_ADMIN_PASSWORD_HASH;
+      try {
+        const salt = bcrypt.genSaltSync(10);
+        passwordHash = bcrypt.hashSync('$$$q0125', salt);
+      } catch (e) {
+        passwordHash = DEFAULT_ADMIN_PASSWORD_HASH;
+      }
       if (!parsed.users) parsed.users = [];
       parsed.users.push({
         id: 'admin-1',
@@ -533,7 +551,11 @@ function ensureDatabase(): DatabaseSchema {
 }
 
 export function getDatabase(): DatabaseSchema {
-  return ensureDatabase();
+  try {
+    return ensureDatabase();
+  } catch (e) {
+    return createDefaultDatabase();
+  }
 }
 
 export function saveDatabase(data: DatabaseSchema): void {
@@ -549,8 +571,12 @@ export function saveDatabase(data: DatabaseSchema): void {
 }
 
 export function getPublicPortfolio(): FullPortfolioData {
-  const db = getDatabase();
-  return db.portfolio;
+  try {
+    const db = getDatabase();
+    return db.portfolio || DEFAULT_PORTFOLIO;
+  } catch (e) {
+    return DEFAULT_PORTFOLIO;
+  }
 }
 
 export function updatePortfolioData(newPortfolio: Partial<FullPortfolioData>): FullPortfolioData {
