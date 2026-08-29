@@ -14,7 +14,35 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onViewProjects,
   customHeroContent,
 }) => {
-  const content = customHeroContent || heroContent;
+  const content = {
+    badge: {
+      ko: customHeroContent?.badge?.ko || heroContent.badge.ko,
+      en: customHeroContent?.badge?.en || heroContent.badge.en,
+    },
+    headline: {
+      ko: {
+        prefix: customHeroContent?.headline?.ko?.prefix ?? heroContent.headline.ko.prefix,
+        highlight: customHeroContent?.headline?.ko?.highlight ?? heroContent.headline.ko.highlight,
+      },
+      en: {
+        prefix: customHeroContent?.headline?.en?.prefix ?? heroContent.headline.en.prefix,
+        highlight: customHeroContent?.headline?.en?.highlight ?? heroContent.headline.en.highlight,
+      },
+    },
+    bioItems: customHeroContent?.bioItems && customHeroContent.bioItems.length >= 2
+      ? customHeroContent.bioItems
+      : heroContent.bioItems,
+    cta: {
+      viewProjects: {
+        ko: customHeroContent?.cta?.viewProjects?.ko || heroContent.cta.viewProjects.ko,
+        en: customHeroContent?.cta?.viewProjects?.en || heroContent.cta.viewProjects.en,
+      },
+      simulation: {
+        ko: customHeroContent?.cta?.simulation?.ko || heroContent.cta.simulation.ko,
+        en: customHeroContent?.cta?.simulation?.en || heroContent.cta.simulation.en,
+      },
+    },
+  };
   const isKo = language === 'ko';
 
   return (
@@ -24,7 +52,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           {/* Pill Badge matching Image 4 & Image 6 */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-300 text-xs font-semibold tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse"></span>
-            {content.badge[language]}
+            {content.badge[language] || content.badge.ko}
           </div>
 
           {/* Main Headline with exact styling */}
@@ -32,18 +60,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
               {isKo ? (
                 <>
-                  <span>{content.headline.ko.prefix}</span>
+                  <span>{content.headline?.ko?.prefix ?? '나의 로봇 '}</span>
                   <br />
                   <span className="text-[#00b4d8] dark:text-[#00d2ff]">
-                    {content.headline.ko.highlight}
+                    {content.headline?.ko?.highlight ?? '포트폴리오'}
                   </span>
                 </>
               ) : (
                 <>
-                  <span>{content.headline.en.prefix}</span>
+                  <span>{content.headline?.en?.prefix ?? 'MY ROBOT '}</span>
                   <br />
                   <span className="text-[#00b4d8] dark:text-[#00d2ff]">
-                    {content.headline.en.highlight}
+                    {content.headline?.en?.highlight ?? 'PORTFOLIO'}
                   </span>
                 </>
               )}
@@ -59,10 +87,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
               <div>
                 <p className="text-[17px] font-semibold text-slate-800 dark:text-slate-100">
-                  {content.bioItems[0].text[language]}
+                  {content.bioItems[0]?.text?.[language] || content.bioItems[0]?.text?.ko || ''}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                  {content.bioItems[0].detail[language]}
+                  {content.bioItems[0]?.detail?.[language] || content.bioItems[0]?.detail?.ko || ''}
                 </p>
               </div>
             </div>
@@ -74,10 +102,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
               <div>
                 <p className="text-[17px] font-semibold text-slate-800 dark:text-slate-100">
-                  {content.bioItems[1].text[language]}
+                  {content.bioItems[1]?.text?.[language] || content.bioItems[1]?.text?.ko || ''}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                  {content.bioItems[1].detail[language]}
+                  {content.bioItems[1]?.detail?.[language] || content.bioItems[1]?.detail?.ko || ''}
                 </p>
               </div>
             </div>
@@ -91,7 +119,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               id="hero-view-projects-btn"
               className="px-7 py-3 rounded-lg bg-[#0c182a] dark:bg-cyan-500 hover:bg-[#162a45] dark:hover:bg-cyan-400 text-white dark:text-slate-950 font-bold text-[13px] tracking-wider uppercase transition-all shadow-md shadow-slate-900/10 dark:shadow-cyan-500/20 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <span className="whitespace-nowrap">{content.cta.viewProjects[language]}</span>
+              <span className="whitespace-nowrap">
+                {content.cta?.viewProjects?.[language] || 'VIEW PROJECTS'}
+              </span>
               <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           </div>

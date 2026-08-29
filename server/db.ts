@@ -628,13 +628,51 @@ export function getPublicPortfolio(): FullPortfolioData {
   }
 }
 
-export function updatePortfolioData(newPortfolio: Partial<FullPortfolioData>): FullPortfolioData {
-  const db = getDatabase();
-  db.portfolio = {
-    ...db.portfolio,
-    ...newPortfolio,
+export function deepMergePortfolio(target: FullPortfolioData, source: Partial<FullPortfolioData>): FullPortfolioData {
+  return {
+    heroContent: {
+      badge: {
+        ko: source.heroContent?.badge?.ko || target.heroContent?.badge?.ko || DEFAULT_PORTFOLIO.heroContent.badge.ko,
+        en: source.heroContent?.badge?.en || target.heroContent?.badge?.en || DEFAULT_PORTFOLIO.heroContent.badge.en,
+      },
+      headline: {
+        ko: {
+          prefix: source.heroContent?.headline?.ko?.prefix ?? target.heroContent?.headline?.ko?.prefix ?? DEFAULT_PORTFOLIO.heroContent.headline.ko.prefix,
+          highlight: source.heroContent?.headline?.ko?.highlight ?? target.heroContent?.headline?.ko?.highlight ?? DEFAULT_PORTFOLIO.heroContent.headline.ko.highlight,
+        },
+        en: {
+          prefix: source.heroContent?.headline?.en?.prefix ?? target.heroContent?.headline?.en?.prefix ?? DEFAULT_PORTFOLIO.heroContent.headline.en.prefix,
+          highlight: source.heroContent?.headline?.en?.highlight ?? target.heroContent?.headline?.en?.highlight ?? DEFAULT_PORTFOLIO.heroContent.headline.en.highlight,
+        },
+      },
+      bioItems: (source.heroContent?.bioItems && source.heroContent.bioItems.length > 0)
+        ? source.heroContent.bioItems
+        : (target.heroContent?.bioItems && target.heroContent.bioItems.length > 0)
+        ? target.heroContent.bioItems
+        : DEFAULT_PORTFOLIO.heroContent.bioItems,
+      cta: {
+        viewProjects: {
+          ko: source.heroContent?.cta?.viewProjects?.ko || target.heroContent?.cta?.viewProjects?.ko || DEFAULT_PORTFOLIO.heroContent.cta.viewProjects.ko,
+          en: source.heroContent?.cta?.viewProjects?.en || target.heroContent?.cta?.viewProjects?.en || DEFAULT_PORTFOLIO.heroContent.cta.viewProjects.en,
+        },
+        simulation: {
+          ko: source.heroContent?.cta?.simulation?.ko || target.heroContent?.cta?.simulation?.ko || DEFAULT_PORTFOLIO.heroContent.cta.simulation.ko,
+          en: source.heroContent?.cta?.simulation?.en || target.heroContent?.cta?.simulation?.en || DEFAULT_PORTFOLIO.heroContent.cta.simulation.en,
+        },
+      },
+    },
+    skillsData: source.skillsData && source.skillsData.length > 0 ? source.skillsData : (target.skillsData || DEFAULT_PORTFOLIO.skillsData),
+    trialLogsData: source.trialLogsData && source.trialLogsData.length > 0 ? source.trialLogsData : (target.trialLogsData || DEFAULT_PORTFOLIO.trialLogsData),
+    timelineEventsData: source.timelineEventsData && source.timelineEventsData.length > 0 ? source.timelineEventsData : (target.timelineEventsData || DEFAULT_PORTFOLIO.timelineEventsData),
+    projectsData: source.projectsData && source.projectsData.length > 0 ? source.projectsData : (target.projectsData || DEFAULT_PORTFOLIO.projectsData),
+    bgmConfig: source.bgmConfig || target.bgmConfig || DEFAULT_PORTFOLIO.bgmConfig,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function updatePortfolioData(newPortfolio: Partial<FullPortfolioData>): FullPortfolioData {
+  const db = getDatabase();
+  db.portfolio = deepMergePortfolio(db.portfolio || DEFAULT_PORTFOLIO, newPortfolio);
   saveDatabase(db);
   return db.portfolio;
 }

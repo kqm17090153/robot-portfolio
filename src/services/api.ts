@@ -62,6 +62,48 @@ export function setLocalStoredPortfolio(data: FullPortfolioData | null): void {
   }
 }
 
+export function mergeWithDefaults(data: Partial<FullPortfolioData> | null | undefined): FullPortfolioData {
+  if (!data) return fallbackPortfolioData;
+
+  return {
+    heroContent: {
+      badge: {
+        ko: data.heroContent?.badge?.ko || heroContent.badge.ko,
+        en: data.heroContent?.badge?.en || heroContent.badge.en,
+      },
+      headline: {
+        ko: {
+          prefix: data.heroContent?.headline?.ko?.prefix ?? heroContent.headline.ko.prefix,
+          highlight: data.heroContent?.headline?.ko?.highlight ?? heroContent.headline.ko.highlight,
+        },
+        en: {
+          prefix: data.heroContent?.headline?.en?.prefix ?? heroContent.headline.en.prefix,
+          highlight: data.heroContent?.headline?.en?.highlight ?? heroContent.headline.en.highlight,
+        },
+      },
+      bioItems: data.heroContent?.bioItems && data.heroContent.bioItems.length >= 2
+        ? data.heroContent.bioItems
+        : heroContent.bioItems,
+      cta: {
+        viewProjects: {
+          ko: data.heroContent?.cta?.viewProjects?.ko || heroContent.cta.viewProjects.ko,
+          en: data.heroContent?.cta?.viewProjects?.en || heroContent.cta.viewProjects.en,
+        },
+        simulation: {
+          ko: data.heroContent?.cta?.simulation?.ko || heroContent.cta.simulation.ko,
+          en: data.heroContent?.cta?.simulation?.en || heroContent.cta.simulation.en,
+        },
+      },
+    },
+    skillsData: data.skillsData && data.skillsData.length > 0 ? data.skillsData : skillsData,
+    trialLogsData: data.trialLogsData && data.trialLogsData.length > 0 ? data.trialLogsData : trialLogsData,
+    timelineEventsData: data.timelineEventsData && data.timelineEventsData.length > 0 ? data.timelineEventsData : timelineEventsData,
+    projectsData: data.projectsData && data.projectsData.length > 0 ? data.projectsData : projectsData,
+    bgmConfig: data.bgmConfig || bgmConfig,
+    updatedAt: data.updatedAt || new Date().toISOString(),
+  };
+}
+
 export async function fetchPortfolioData(): Promise<FullPortfolioData> {
   const localSaved = getLocalStoredPortfolio();
 
@@ -76,7 +118,7 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) {
-        const serverData: FullPortfolioData = json.data;
+        const serverData: FullPortfolioData = mergeWithDefaults(json.data);
 
         // If local data exists and is newer than server data, keep local and attempt silent sync
         if (localSaved && localSaved.updatedAt && serverData.updatedAt) {
@@ -84,8 +126,8 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
           const serverTime = new Date(serverData.updatedAt).getTime();
 
           if (localTime > serverTime) {
-            // Local is newer, return local
-            return localSaved;
+            const mergedLocal = mergeWithDefaults(localSaved);
+            return mergedLocal;
           }
         }
 
@@ -99,7 +141,7 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
   }
 
   // Fallback to local stored data or initial defaults
-  return localSaved || fallbackPortfolioData;
+  return mergeWithDefaults(localSaved || fallbackPortfolioData);
 }
 
 export async function loginAdminApi(username: string, password: string): Promise<{
