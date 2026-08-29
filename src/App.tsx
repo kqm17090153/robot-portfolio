@@ -7,6 +7,7 @@ import { ProjectShowcase } from './components/ProjectShowcase';
 import { Footer } from './components/Footer';
 import { CodeViewerModal } from './components/CodeViewerModal';
 import { ProjectDetailModal } from './components/ProjectDetailModal';
+import { BackgroundMusicPlayer } from './components/BackgroundMusicPlayer';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { BackgroundTheme, Language, Project, SkillItem } from './types';
@@ -239,6 +240,12 @@ export default function App() {
           language={language}
         />
       )}
+
+      {/* Global Floating Background Music (BGM) Player */}
+      <BackgroundMusicPlayer
+        bgmConfig={portfolioData.bgmConfig}
+        language={language}
+      />
     </div>
   );
 }

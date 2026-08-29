@@ -1,7 +1,7 @@
 import { Project, SkillItem, TimelineEvent, TrialLog } from '../types';
 
 import heroWorkshopImg from '../assets/images/hero_workshop_lab_1786757672669.jpg';
-import redTowerImg from '../assets/images/robot_arm_red_tower_1786757686598.jpg';
+import redTowerImg from '../assets/images/red_tower_project_1787961776273.jpg';
 import studentAvatarImg from '../assets/images/student_robotics_avatar_1786757699322.jpg';
 
 export const portfolioImages = {
@@ -397,6 +397,43 @@ export const projectsData: Project[] = [
     },
   },
 ];
+
+export const bgmConfig = {
+  enabled: true,
+  autoPlay: false,
+  defaultVolume: 0.4,
+  currentTrackId: 'track-cyber-pulse',
+  tracks: [
+    {
+      id: 'track-cyber-pulse',
+      title: 'Cyber Pulse (Future Robotics)',
+      artist: 'Future Tech Ambient',
+      url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3',
+      category: 'Cyberpunk',
+    },
+    {
+      id: 'track-chill-lofi',
+      title: 'Chill Lo-Fi Study & Code',
+      artist: 'FASSounds',
+      url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3',
+      category: 'Lo-Fi',
+    },
+    {
+      id: 'track-synthwave',
+      title: 'Creative Minds (Synth Tech)',
+      artist: 'Benjamin Tissot',
+      url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3',
+      category: 'Synthwave',
+    },
+    {
+      id: 'track-inspiring',
+      title: 'Inspiring Dreams (Gentle Acoustic)',
+      artist: 'AudioCoffee',
+      url: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3',
+      category: 'Ambient',
+    },
+  ],
+};
 
 export const githubRepoInfo = {
   title: {

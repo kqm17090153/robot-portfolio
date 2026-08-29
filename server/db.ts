@@ -83,6 +83,19 @@ export interface FullPortfolioData {
       en: string[];
     };
   }>;
+  bgmConfig?: {
+    enabled: boolean;
+    autoPlay: boolean;
+    defaultVolume: number;
+    currentTrackId: string;
+    tracks: Array<{
+      id: string;
+      title: string;
+      artist: string;
+      url: string;
+      category?: string;
+    }>;
+  };
   updatedAt: string;
 }
 
@@ -417,7 +430,7 @@ def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
         ko: '카메라 기반 색상 인식 및 초음파 거리 센서를 조합하여 빨간색 블록 타워를 정확히 탐지하고, 4축 다관절 로봇 팔의 역기구학 연산을 통해 대상물을 안전하게 파지하여 지정된 타겟 위치에 정밀하게 적재하는 자율 로봇 매니퓰레이터 시스템입니다.',
         en: 'An integrated autonomous robotic manipulator combining computer vision color detection, ultrasonic ranging, and 4-axis inverse kinematics to detect, grip, lift, and stack structural red block modules onto precision target fixtures.',
       },
-      imageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1000&q=80',
+      imageUrl: '/assets/red_tower_project.jpg',
       tags: ['Computer Vision', 'Inverse Kinematics', 'Python', 'OpenCV', 'Closed-Loop Servo'],
       specs: {
         hub: '스파이크프라임 허브 (6-Port / Gyro)',
@@ -446,6 +459,42 @@ def inverse_kinematics_2d(target_x, target_y, l1=120.0, l2=110.0):
       },
     },
   ],
+  bgmConfig: {
+    enabled: true,
+    autoPlay: false,
+    defaultVolume: 0.4,
+    currentTrackId: 'track-cyber-pulse',
+    tracks: [
+      {
+        id: 'track-cyber-pulse',
+        title: 'Cyber Pulse (Future Robotics)',
+        artist: 'Future Tech Ambient',
+        url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3',
+        category: 'Cyberpunk',
+      },
+      {
+        id: 'track-chill-lofi',
+        title: 'Chill Lo-Fi Study & Code',
+        artist: 'FASSounds',
+        url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3',
+        category: 'Lo-Fi',
+      },
+      {
+        id: 'track-synthwave',
+        title: 'Creative Minds (Synth Tech)',
+        artist: 'Benjamin Tissot',
+        url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3',
+        category: 'Synthwave',
+      },
+      {
+        id: 'track-inspiring',
+        title: 'Inspiring Dreams (Gentle Acoustic)',
+        artist: 'AudioCoffee',
+        url: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3',
+        category: 'Ambient',
+      },
+    ],
+  },
   updatedAt: new Date().toISOString(),
 };
 

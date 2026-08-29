@@ -5,6 +5,7 @@ import {
   trialLogsData,
   timelineEventsData,
   projectsData,
+  bgmConfig,
 } from '../data/portfolioData';
 
 const TOKEN_KEY = 'robotfolio_admin_jwt';
@@ -17,6 +18,7 @@ export const fallbackPortfolioData: FullPortfolioData = {
   trialLogsData,
   timelineEventsData,
   projectsData,
+  bgmConfig,
   updatedAt: new Date().toISOString(),
 };
 

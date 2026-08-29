@@ -1,6 +1,22 @@
 export type Language = 'ko' | 'en';
 export type BackgroundTheme = 'dots' | 'waves' | 'neon';
 
+export interface BgmTrack {
+  id: string;
+  title: string;
+  artist: string;
+  url: string;
+  category?: string;
+}
+
+export interface BgmConfig {
+  enabled: boolean;
+  autoPlay: boolean;
+  defaultVolume: number; // 0 to 1
+  currentTrackId: string;
+  tracks: BgmTrack[];
+}
+
 export interface SkillItem {
   id: string;
   name: string;
