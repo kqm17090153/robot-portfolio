@@ -39,6 +39,113 @@ import { checkClientSupabaseStatus, SUPABASE_SETUP_SQL, SUPABASE_URL } from '../
 import { SkillItem, TrialLog, TimelineEvent, Project, BgmTrack, BgmConfig } from '../../types';
 import { ImageUploadField } from './ImageUploadField';
 
+// Smooth Comma-Separated Tag Input Component (Prevents comma & space deletion while typing)
+interface CommaSeparatedInputProps {
+  value: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const CommaSeparatedInput: React.FC<CommaSeparatedInputProps> = ({
+  value,
+  onChange,
+  placeholder = '태그를 쉼표로 구분하여 입력 (예: Python, PID, Motor)',
+  className = 'w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono',
+}) => {
+  const [text, setText] = useState<string>(() => (value || []).join(', '));
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isTypingRef.current) {
+      setText((value || []).join(', '));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isTypingRef.current = true;
+    const raw = e.target.value;
+    setText(raw);
+
+    const parsed = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    onChange(parsed);
+  };
+
+  const handleBlur = () => {
+    isTypingRef.current = false;
+    // On blur, clean up formatting nicely
+    setText((value || []).join(', '));
+  };
+
+  return (
+    <input
+      type="text"
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
+// Multiline Array Input (Prevents newlines/Enter from being swallowed while typing)
+interface MultilineListInputProps {
+  value: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+  className?: string;
+  rows?: number;
+}
+
+const MultilineListInput: React.FC<MultilineListInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  className = 'w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono',
+  rows = 2,
+}) => {
+  const [text, setText] = useState<string>(() => (value || []).join('\n'));
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isTypingRef.current) {
+      setText((value || []).join('\n'));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    isTypingRef.current = true;
+    const raw = e.target.value;
+    setText(raw);
+
+    const parsed = raw
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    onChange(parsed);
+  };
+
+  const handleBlur = () => {
+    isTypingRef.current = false;
+    setText((value || []).join('\n'));
+  };
+
+  return (
+    <textarea
+      rows={rows}
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 interface AdminDashboardProps {
   user: { id: string; username: string; name: string; role: string };
   initialData: FullPortfolioData;
@@ -1089,18 +1196,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">태그 (쉼표로 구분)</label>
-                      <input
-                        type="text"
-                        value={skill.tags.join(', ')}
-                        onChange={(e) => {
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+                        <span>태그 (쉼표로 구분하여 입력)</span>
+                        <span className="text-[10px] text-slate-500 font-mono">예: Python, PID, Motor, 센서</span>
+                      </label>
+                      <CommaSeparatedInput
+                        value={skill.tags}
+                        onChange={(tags) => {
                           const newSkills = [...formData.skillsData];
-                          newSkills[idx].tags = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                          newSkills[idx].tags = tags;
                           setFormData({ ...formData, skillsData: newSkills });
                         }}
+                        placeholder="쉼표(,)로 구분해 여러 태그를 입력하세요 (예: MicroPython, 제어알고리즘)"
                         className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono"
                       />
+                      {skill.tags && skill.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {skill.tags.map((tag, tIdx) => (
+                            <span
+                              key={tIdx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-950/80 text-cyan-300 text-[10px] font-mono border border-cyan-800/60"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -1207,14 +1329,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                       <div>
                         <label className="block text-[11px] text-slate-400 mb-1">핵심 인용문 (한국어, 줄바꿈으로 구분)</label>
-                        <textarea
+                        <MultilineListInput
                           rows={2}
-                          value={trial.quotes.ko.join('\n')}
-                          onChange={(e) => {
+                          value={trial.quotes.ko}
+                          onChange={(quotes) => {
                             const newTrials = [...formData.trialLogsData];
-                            newTrials[idx].quotes.ko = e.target.value.split('\n').filter(Boolean);
+                            newTrials[idx].quotes.ko = quotes;
                             setFormData({ ...formData, trialLogsData: newTrials });
                           }}
+                          placeholder="한 줄에 하나씩 인용구를 입력하세요 (Enter 지원)"
                           className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono"
                         />
                       </div>
@@ -1223,14 +1346,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] text-slate-400 mb-1">Quotes (English, one per line)</label>
-                        <textarea
+                        <MultilineListInput
                           rows={2}
-                          value={trial.quotes.en.join('\n')}
-                          onChange={(e) => {
+                          value={trial.quotes.en}
+                          onChange={(quotes) => {
                             const newTrials = [...formData.trialLogsData];
-                            newTrials[idx].quotes.en = e.target.value.split('\n').filter(Boolean);
+                            newTrials[idx].quotes.en = quotes;
                             setFormData({ ...formData, trialLogsData: newTrials });
                           }}
+                          placeholder="Enter quotes one per line"
                           className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-cyan-500 font-mono"
                         />
                       </div>
