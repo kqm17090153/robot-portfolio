@@ -63,16 +63,35 @@ export function setLocalStoredPortfolio(data: FullPortfolioData | null): void {
 }
 
 export async function fetchPortfolioData(): Promise<FullPortfolioData> {
-  // First check if user has custom edits saved in browser localStorage
   const localSaved = getLocalStoredPortfolio();
 
   try {
-    const res = await fetch('/api/portfolio');
+    const res = await fetch('/api/portfolio', {
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
+
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.data) {
-        // If server data exists, prefer server or merge with local
-        return json.data;
+        const serverData: FullPortfolioData = json.data;
+
+        // If local data exists and is newer than server data, keep local and attempt silent sync
+        if (localSaved && localSaved.updatedAt && serverData.updatedAt) {
+          const localTime = new Date(localSaved.updatedAt).getTime();
+          const serverTime = new Date(serverData.updatedAt).getTime();
+
+          if (localTime > serverTime) {
+            // Local is newer, return local
+            return localSaved;
+          }
+        }
+
+        // Server data is fresh and authority, update local cache
+        setLocalStoredPortfolio(serverData);
+        return serverData;
       }
     }
   } catch (err) {

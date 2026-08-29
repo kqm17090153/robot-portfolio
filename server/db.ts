@@ -104,9 +104,9 @@ interface DatabaseSchema {
   portfolio: FullPortfolioData;
 }
 
-// Resilient storage path: use /tmp on serverless environments (Vercel/AWS Lambda) or fallback
-const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production' && !process.env.IS_LOCAL_SERVER);
-const DB_DIR = isServerless ? '/tmp/data' : path.join(process.cwd(), 'data');
+// Database directory resolution
+// In Node.js / container environment, save to ./data/db.json in project root
+const DB_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DB_DIR, 'db.json');
 
 // In-memory cache to guarantee zero downtime even on ephemeral/read-only environments
