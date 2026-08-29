@@ -108,9 +108,9 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
   const localSaved = getLocalStoredPortfolio();
 
   try {
-    const res = await fetch('/api/portfolio', {
+    const res = await fetch(`/api/portfolio?t=${Date.now()}`, {
       headers: {
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
         Pragma: 'no-cache',
       },
     });

@@ -105,9 +105,11 @@ interface DatabaseSchema {
 }
 
 // Database directory resolution
-// In Node.js / container environment, save to ./data/db.json in project root
-const DB_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DB_DIR, 'db.json');
+// Support standard container/local storage as well as serverless /tmp fallback
+const PRIMARY_DB_DIR = path.join(process.cwd(), 'data');
+const PRIMARY_DB_FILE = path.join(PRIMARY_DB_DIR, 'db.json');
+const SERVERLESS_DB_DIR = '/tmp/data';
+const SERVERLESS_DB_FILE = path.join(SERVERLESS_DB_DIR, 'db.json');
 
 // In-memory cache to guarantee zero downtime even on ephemeral/read-only environments
 let memoryCache: DatabaseSchema | null = null;
@@ -531,26 +533,25 @@ function ensureDatabase(): DatabaseSchema {
   }
 
   try {
-    try {
-      if (!fs.existsSync(DB_DIR)) {
-        fs.mkdirSync(DB_DIR, { recursive: true });
-      }
-    } catch (dirErr) {
-      console.warn('DB_DIR check failed:', dirErr);
+    let raw = '';
+    let targetPath = '';
+
+    // 1. Check serverless /tmp first (holds runtime writes in serverless)
+    if (fs.existsSync(SERVERLESS_DB_FILE)) {
+      raw = fs.readFileSync(SERVERLESS_DB_FILE, 'utf-8');
+      targetPath = SERVERLESS_DB_FILE;
+    } else if (fs.existsSync(PRIMARY_DB_FILE)) {
+      raw = fs.readFileSync(PRIMARY_DB_FILE, 'utf-8');
+      targetPath = PRIMARY_DB_FILE;
     }
 
-    if (!fs.existsSync(DB_FILE)) {
+    if (!raw) {
       const initialData = createDefaultDatabase();
-      try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-      } catch (writeErr) {
-        console.warn('Could not write DB file to disk, using in-memory mode:', writeErr);
-      }
+      saveDatabase(initialData);
       memoryCache = initialData;
       return initialData;
     }
 
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw) as DatabaseSchema;
     let needsSave = false;
 
@@ -576,17 +577,13 @@ function ensureDatabase(): DatabaseSchema {
       needsSave = true;
     }
 
-    if (!parsed.portfolio || !parsed.portfolio.heroContent) {
+    if (!parsed.portfolio || !parsed.portfolio.heroContent || !parsed.portfolio.heroContent.badge) {
       parsed.portfolio = DEFAULT_PORTFOLIO;
       needsSave = true;
     }
 
     if (needsSave) {
-      try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
-      } catch (writeErr) {
-        console.warn('Could not write updated DB file to disk:', writeErr);
-      }
+      saveDatabase(parsed);
     }
 
     memoryCache = parsed;
@@ -609,13 +606,30 @@ export function getDatabase(): DatabaseSchema {
 
 export function saveDatabase(data: DatabaseSchema): void {
   memoryCache = data;
+  const jsonStr = JSON.stringify(data, null, 2);
+
+  // Attempt write to Primary (Local Container)
+  let savedToPrimary = false;
   try {
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
+    if (!fs.existsSync(PRIMARY_DB_DIR)) {
+      fs.mkdirSync(PRIMARY_DB_DIR, { recursive: true });
     }
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(PRIMARY_DB_FILE, jsonStr, 'utf-8');
+    savedToPrimary = true;
   } catch (err) {
-    console.warn('Disk save failed, state kept in memory:', err);
+    // Expected on read-only serverless filesystems
+  }
+
+  // Attempt write to Serverless /tmp
+  try {
+    if (!fs.existsSync(SERVERLESS_DB_DIR)) {
+      fs.mkdirSync(SERVERLESS_DB_DIR, { recursive: true });
+    }
+    fs.writeFileSync(SERVERLESS_DB_FILE, jsonStr, 'utf-8');
+  } catch (err) {
+    if (!savedToPrimary) {
+      console.warn('Both disk targets failed, state kept in memory:', err);
+    }
   }
 }
 

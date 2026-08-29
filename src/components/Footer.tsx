@@ -57,8 +57,16 @@ export const Footer: React.FC<FooterProps> = ({ language }) => {
         </div>
 
         {/* Copyright matching Image 4 & Image 6 */}
-        <div className="font-mono text-slate-400 dark:text-slate-500">
-          © 2026 WRO Q's Portfolio
+        <div className="flex items-center gap-3 font-mono text-slate-400 dark:text-slate-500">
+          <span>© 2026 WRO Q's Portfolio</span>
+          <span className="text-slate-300 dark:text-slate-700">•</span>
+          <a
+            href="#/admin"
+            className="text-[11px] text-slate-400 hover:text-cyan-400 transition-colors flex items-center gap-1 opacity-70 hover:opacity-100"
+            title="관리자 콘솔"
+          >
+            <span>관리자</span>
+          </a>
         </div>
       </div>
     </footer>

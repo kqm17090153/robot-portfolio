@@ -25,9 +25,16 @@ import {
   Upload,
   Link as LinkIcon,
   Check,
+  Download,
+  Copy,
+  FileText,
+  RefreshCw,
+  Smartphone,
+  CheckCheck,
+  Database,
 } from 'lucide-react';
 import { FullPortfolioData } from '../../../server/db';
-import { savePortfolioApi, resetPortfolioApi, logoutAdminApi } from '../../services/api';
+import { savePortfolioApi, resetPortfolioApi, logoutAdminApi, mergeWithDefaults } from '../../services/api';
 import { SkillItem, TrialLog, TimelineEvent, Project, BgmTrack, BgmConfig } from '../../types';
 import { ImageUploadField } from './ImageUploadField';
 
@@ -39,7 +46,7 @@ interface AdminDashboardProps {
   onViewPublic: () => void;
 }
 
-type TabType = 'hero' | 'skills' | 'trials' | 'timeline' | 'projects' | 'bgm';
+type TabType = 'hero' | 'skills' | 'trials' | 'timeline' | 'projects' | 'bgm' | 'sync';
 
 const BGM_PRESET_LIBRARY = [
   {
@@ -392,6 +399,83 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reader.readAsDataURL(file);
   };
 
+  // -------------------------------------------------------------------------------------
+  // JSON Backup / Import / Cross-Device Sync Handlers
+  // -------------------------------------------------------------------------------------
+  const [importJsonText, setImportJsonText] = useState('');
+  const [copiedJson, setCopiedJson] = useState(false);
+  const [syncingServer, setSyncingServer] = useState(false);
+
+  // Copy full JSON to clipboard
+  const handleCopyJson = async () => {
+    try {
+      const jsonStr = JSON.stringify(formData, null, 2);
+      await navigator.clipboard.writeText(jsonStr);
+      setCopiedJson(true);
+      showFeedback('success', '전체 포트폴리오 JSON 데이터가 클립보드에 복사되었습니다.');
+      setTimeout(() => setCopiedJson(false), 3000);
+    } catch (err) {
+      showFeedback('error', '클립보드 복사에 실패했습니다.');
+    }
+  };
+
+  // Download JSON backup file
+  const handleExportJson = () => {
+    try {
+      const jsonStr = JSON.stringify(formData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `robotfolio-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showFeedback('success', '백업 JSON 파일이 성공적으로 다운로드되었습니다.');
+    } catch (err) {
+      showFeedback('error', '파일 다운로드 중 오류가 발생했습니다.');
+    }
+  };
+
+  // Import JSON string & apply immediately
+  const handleImportJson = async () => {
+    if (!importJsonText.trim()) {
+      showFeedback('error', '가져올 JSON 데이터를 입력창에 붙여넣어 주세요.');
+      return;
+    }
+    try {
+      const parsed = JSON.parse(importJsonText);
+      const validated = mergeWithDefaults(parsed);
+      setFormData(validated);
+      setSaving(true);
+      const res = await savePortfolioApi(validated);
+      setSaving(false);
+      if (res.success && res.data) {
+        onDataSaved(res.data);
+        showFeedback('success', 'JSON 데이터가 성공적으로 적용 및 서버/로컬에 저장되었습니다!');
+        setImportJsonText('');
+      } else {
+        showFeedback('error', res.error || '저장 중 오류가 발생했습니다.');
+      }
+    } catch (err: any) {
+      showFeedback('error', '유효하지 않은 JSON 데이터입니다: ' + err.message);
+    }
+  };
+
+  // Force Server Sync
+  const handleForceSyncServer = async () => {
+    setSyncingServer(true);
+    const res = await savePortfolioApi(formData);
+    setSyncingServer(false);
+    if (res.success && res.data) {
+      onDataSaved(res.data);
+      showFeedback('success', '서버 데이터베이스로 전체 내용이 강제 동기화되었습니다. (모든 기기 즉시 반영)');
+    } else {
+      showFeedback('error', res.error || '서버 동기화 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#070e18] text-slate-100 flex flex-col">
       {/* Top Admin Navigation Bar */}
@@ -580,6 +664,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </span>
             </div>
           </button>
+
+          <div className="pt-2">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 py-1 mb-1">
+              데이터 관리
+            </div>
+            <button
+              onClick={() => setActiveTab('sync')}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-left transition-colors cursor-pointer ${
+                activeTab === 'sync'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                  : 'text-slate-300 hover:bg-slate-850 hover:text-white'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4 shrink-0 text-cyan-400" />
+              <div className="flex-1 flex items-center justify-between">
+                <span>기기 동기화 & 백업</span>
+                <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono font-bold">
+                  JSON
+                </span>
+              </div>
+            </button>
+          </div>
         </aside>
 
         {/* Tab Content Panel */}
@@ -1764,6 +1870,175 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: DATA SYNC & BACKUP */}
+          {activeTab === 'sync' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="border-b border-slate-800 pb-4">
+                <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5 text-cyan-400" />
+                  기기 동기화 (PC ↔ 모바일) 및 JSON 백업 / 복원
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  PC에서 수정한 내용을 모바일 기기에 즉시 반영하거나, JSON 파일로 안전하게 백업 및 불러올 수 있습니다.
+                </p>
+              </div>
+
+              {/* Status / Cloud Sync Panel */}
+              <div className="bg-slate-950/80 border border-cyan-500/30 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <h3 className="text-sm font-bold text-white">서버 데이터베이스 실시간 연결 상태</h3>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      최근 동기화 일시: <span className="font-mono text-cyan-300">{formData.updatedAt ? new Date(formData.updatedAt).toLocaleString() : '방금 전'}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-slate-400">
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">기술 {formData.skillsData.length}개</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">프로젝트 {formData.projectsData.length}개</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">일지 {formData.trialLogsData.length}개</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">BGM {currentBgmConfig.tracks.length}곡</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleForceSyncServer}
+                    disabled={syncingServer || saving}
+                    className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncingServer ? 'animate-spin' : ''}`} />
+                    <span>{syncingServer ? '서버 동기화 중...' : '서버로 강제 전체 동기화'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Step by Step Mobile Sync Guide */}
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-cyan-400" />
+                  PC에서 수정한 내용이 모바일에서 안 보일 때 해결 방법
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-400">
+                  <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800/80 space-y-1">
+                    <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 font-black text-[11px] flex items-center justify-center">1</span>
+                      PC에서 저장 완료
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      우측 상단 <strong>[저장 & 공개 반영]</strong> 또는 위 <strong>[서버로 강제 전체 동기화]</strong> 버튼을 클릭합니다.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800/80 space-y-1">
+                    <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 font-black text-[11px] flex items-center justify-center">2</span>
+                      모바일 브라우저 새로고침
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      모바일 기기에서 브라우저를 강력 새로고침(또는 캐시 비우기)하여 서버의 최신 데이터를 수신합니다.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800/80 space-y-1">
+                    <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 font-black text-[11px] flex items-center justify-center">3</span>
+                      JSON 복사/가져오기 (가장 확실)
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      아래 <strong>[전체 JSON 복사]</strong>를 눌러 카톡/메모장으로 전송 후, 모바일 관리자 콘솔에서 <strong>[JSON 가져오기]</strong>를 하면 1초 만에 100% 동기화됩니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Export & Backup Tools */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <Copy className="w-4 h-4 text-cyan-400" />
+                    클립보드로 JSON 복사
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    현재 편집 중인 모든 데이터(기술 스택, 프로젝트, 일지, 음악 등)를 텍스트 형식으로 클립보드에 복사합니다.
+                  </p>
+                  <button
+                    onClick={handleCopyJson}
+                    className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    {copiedJson ? (
+                      <>
+                        <CheckCheck className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-400">복사 완료!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 text-cyan-400" />
+                        <span>전체 JSON 데이터 복사하기</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <Download className="w-4 h-4 text-cyan-400" />
+                    백업 파일 다운로드 (.json)
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    컴퓨터에 안전하게 JSON 백업 파일을 저장해두고 언제든지 복원할 수 있습니다.
+                  </p>
+                  <button
+                    onClick={handleExportJson}
+                    className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center justify-center gap-2 border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-cyan-400" />
+                    <span>백업 파일 (.json) 다운로드</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Import JSON Section */}
+              <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-white font-bold text-sm">
+                    <FileText className="w-4 h-4 text-cyan-400" />
+                    JSON 데이터 가져오기 (Import & Restore)
+                  </div>
+                  <span className="text-[10px] text-slate-500">포트폴리오 전체 덮어쓰기</span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  PC에서 복사한 JSON 텍스트 또는 백업 파일의 내용을 아래 상자에 붙여넣고 [가져오기 & 즉시 반영] 버튼을 누르세요.
+                </p>
+                <textarea
+                  value={importJsonText}
+                  onChange={(e) => setImportJsonText(e.target.value)}
+                  placeholder="여기에 복사한 JSON 텍스트를 붙여넣으세요..."
+                  rows={6}
+                  className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-cyan-300 font-mono outline-none focus:border-cyan-500 resize-y"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setImportJsonText('')}
+                    disabled={!importJsonText}
+                    className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-semibold disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    지우기
+                  </button>
+                  <button
+                    onClick={handleImportJson}
+                    disabled={saving || !importJsonText.trim()}
+                    className="px-5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold flex items-center gap-2 shadow-md shadow-cyan-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>{saving ? '적용 중...' : '가져오기 & 즉시 저장 반영'}</span>
+                  </button>
                 </div>
               </div>
             </div>
