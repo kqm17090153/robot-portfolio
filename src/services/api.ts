@@ -111,7 +111,19 @@ export function mergeWithDefaults(data: Partial<FullPortfolioData> | null | unde
 export async function fetchPortfolioData(): Promise<FullPortfolioData> {
   const localSaved = getLocalStoredPortfolio();
 
-  // 1. Try server API fetch
+  // 1. Direct browser Supabase query first (Guarantees instant cross-device synchronization)
+  try {
+    const supabaseData = await fetchPortfolioFromClientSupabase();
+    if (supabaseData && supabaseData.heroContent) {
+      const mergedSupabase = mergeWithDefaults(supabaseData);
+      setLocalStoredPortfolio(mergedSupabase);
+      return mergedSupabase;
+    }
+  } catch (err) {
+    console.warn('Direct Supabase client query skipped:', err);
+  }
+
+  // 2. Server API fetch
   try {
     const res = await fetch(`/api/portfolio?t=${Date.now()}`, {
       headers: {
@@ -124,37 +136,12 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
       const json = await res.json();
       if (json.success && json.data) {
         const serverData: FullPortfolioData = mergeWithDefaults(json.data);
-
-        // If local data exists and is newer than server data, keep local and attempt silent sync
-        if (localSaved && localSaved.updatedAt && serverData.updatedAt) {
-          const localTime = new Date(localSaved.updatedAt).getTime();
-          const serverTime = new Date(serverData.updatedAt).getTime();
-
-          if (localTime > serverTime) {
-            const mergedLocal = mergeWithDefaults(localSaved);
-            return mergedLocal;
-          }
-        }
-
-        // Server data is fresh and authority, update local cache
         setLocalStoredPortfolio(serverData);
         return serverData;
       }
     }
   } catch (err) {
-    console.warn('Backend API unreachable, trying direct Supabase client fetch:', err);
-  }
-
-  // 2. Direct browser Supabase query fallback (Cross-Device Cloud Sync)
-  try {
-    const supabaseData = await fetchPortfolioFromClientSupabase();
-    if (supabaseData && supabaseData.heroContent) {
-      const mergedSupabase = mergeWithDefaults(supabaseData);
-      setLocalStoredPortfolio(mergedSupabase);
-      return mergedSupabase;
-    }
-  } catch (err) {
-    console.warn('Direct Supabase client query skipped:', err);
+    console.warn('Backend API unreachable, using local storage or fallback:', err);
   }
 
   // 3. Fallback to local stored data or initial defaults
