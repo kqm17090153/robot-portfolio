@@ -45,31 +45,31 @@ const BGM_PRESET_LIBRARY = [
   {
     title: 'Cyber Pulse (Future Robotics)',
     artist: 'Future Tech Ambient',
-    url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
     category: 'Cyberpunk',
   },
   {
     title: 'Chill Lo-Fi Study & Code',
     artist: 'FASSounds',
-    url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
     category: 'Lo-Fi',
   },
   {
     title: 'Creative Minds (Synth Tech)',
     artist: 'Benjamin Tissot',
-    url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
     category: 'Synthwave',
   },
   {
     title: 'Inspiring Dreams (Gentle Acoustic)',
     artist: 'AudioCoffee',
-    url: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
     category: 'Ambient',
   },
   {
     title: '8-Bit Retro Robot Arcade',
     artist: 'Arcade Master',
-    url: 'https://cdn.pixabay.com/download/audio/2022/10/14/audio_9939f77230.mp3',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
     category: '8-Bit',
   },
 ];

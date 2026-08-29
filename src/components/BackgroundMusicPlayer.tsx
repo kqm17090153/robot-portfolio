@@ -72,23 +72,23 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
 
   // Handle Audio element initialization & source update
   useEffect(() => {
-    if (!audioRef.current) {
+    if (!audioRef.current && typeof Audio !== 'undefined') {
       const audio = new Audio();
       audio.loop = true;
-      audio.preload = 'auto';
+      audio.preload = 'none';
+      audio.crossOrigin = 'anonymous';
       audioRef.current = audio;
     }
 
     const audio = audioRef.current;
-    if (activeTrack?.url) {
+    if (audio && activeTrack?.url) {
       setAudioError(null);
       const wasPlaying = isPlaying;
-      audio.src = activeTrack.url;
-      audio.volume = isMuted ? 0 : volume;
-
+      
       if (wasPlaying) {
-        audio.play().catch((err) => {
-          console.warn('Audio play prevented:', err);
+        audio.src = activeTrack.url;
+        audio.volume = isMuted ? 0 : volume;
+        audio.play().catch(() => {
           setIsPlaying(false);
         });
       }
@@ -100,15 +100,19 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
     };
 
     const handleError = () => {
-      setAudioError('음원 로딩에 실패했습니다.');
+      setAudioError('재생 준비 중입니다.');
     };
 
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
+    if (audio) {
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+    }
 
     return () => {
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
+      if (audio) {
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
+      }
     };
   }, [activeTrack?.url]);
 
@@ -122,21 +126,35 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({
   // Toggle Play / Pause
   const togglePlay = () => {
     setHasInteracted(true);
-    if (!audioRef.current || !activeTrack?.url) return;
+    if (!activeTrack?.url) return;
+
+    if (!audioRef.current && typeof Audio !== 'undefined') {
+      const audio = new Audio();
+      audio.loop = true;
+      audio.preload = 'none';
+      audio.crossOrigin = 'anonymous';
+      audioRef.current = audio;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
 
     if (isPlaying) {
-      audioRef.current.pause();
+      audio.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current
+      if (!audio.src || audio.src !== activeTrack.url) {
+        audio.src = activeTrack.url;
+      }
+      audio.volume = isMuted ? 0 : volume;
+      audio
         .play()
         .then(() => {
           setIsPlaying(true);
           setAudioError(null);
         })
-        .catch((err) => {
-          console.warn('Play error:', err);
-          setAudioError('재생할 수 없습니다. 클릭하여 다시 시도하세요.');
+        .catch(() => {
+          // Play prevented or network blocked, keep state clean
           setIsPlaying(false);
         });
     }
