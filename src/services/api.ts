@@ -7,6 +7,10 @@ import {
   projectsData,
   bgmConfig,
 } from '../data/portfolioData';
+import {
+  fetchPortfolioFromClientSupabase,
+  savePortfolioToClientSupabase,
+} from './supabase';
 
 const TOKEN_KEY = 'robotfolio_admin_jwt';
 const LOCAL_STORAGE_DATA_KEY = 'robotfolio_custom_portfolio_data';
@@ -107,6 +111,7 @@ export function mergeWithDefaults(data: Partial<FullPortfolioData> | null | unde
 export async function fetchPortfolioData(): Promise<FullPortfolioData> {
   const localSaved = getLocalStoredPortfolio();
 
+  // 1. Try server API fetch
   try {
     const res = await fetch(`/api/portfolio?t=${Date.now()}`, {
       headers: {
@@ -137,10 +142,22 @@ export async function fetchPortfolioData(): Promise<FullPortfolioData> {
       }
     }
   } catch (err) {
-    console.warn('Backend API unreachable, using local storage or fallback:', err);
+    console.warn('Backend API unreachable, trying direct Supabase client fetch:', err);
   }
 
-  // Fallback to local stored data or initial defaults
+  // 2. Direct browser Supabase query fallback (Cross-Device Cloud Sync)
+  try {
+    const supabaseData = await fetchPortfolioFromClientSupabase();
+    if (supabaseData && supabaseData.heroContent) {
+      const mergedSupabase = mergeWithDefaults(supabaseData);
+      setLocalStoredPortfolio(mergedSupabase);
+      return mergedSupabase;
+    }
+  } catch (err) {
+    console.warn('Direct Supabase client query skipped:', err);
+  }
+
+  // 3. Fallback to local stored data or initial defaults
   return mergeWithDefaults(localSaved || fallbackPortfolioData);
 }
 
@@ -279,7 +296,12 @@ export async function savePortfolioApi(data: Partial<FullPortfolioData>): Promis
   };
   setLocalStoredPortfolio(merged);
 
-  // Also attempt to save to server
+  // 1. Direct browser Supabase save (non-blocking / parallel)
+  savePortfolioToClientSupabase(merged).catch((e) => {
+    console.warn('Browser Supabase direct save note:', e);
+  });
+
+  // 2. Also save to server (which also updates server Supabase & disk)
   try {
     const res = await fetch('/api/portfolio', {
       method: 'PUT',
@@ -312,6 +334,10 @@ export async function resetPortfolioApi(): Promise<{
 }> {
   const token = getStoredToken();
   setLocalStoredPortfolio(fallbackPortfolioData);
+
+  savePortfolioToClientSupabase(fallbackPortfolioData).catch((e) => {
+    console.warn('Browser Supabase reset note:', e);
+  });
 
   try {
     const res = await fetch('/api/portfolio/reset', {

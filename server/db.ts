@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { savePortfolioToSupabase, fetchPortfolioFromSupabase } from './supabase';
 
 export interface UserAccount {
   id: string;
@@ -642,6 +643,24 @@ export function getPublicPortfolio(): FullPortfolioData {
   }
 }
 
+export async function getPublicPortfolioAsync(): Promise<FullPortfolioData> {
+  // 1. Try fetching from Supabase Cloud DB first
+  try {
+    const supabaseRes = await fetchPortfolioFromSupabase();
+    if (supabaseRes.data && supabaseRes.data.heroContent) {
+      const db = getDatabase();
+      db.portfolio = deepMergePortfolio(DEFAULT_PORTFOLIO, supabaseRes.data);
+      saveDatabase(db);
+      return db.portfolio;
+    }
+  } catch (err) {
+    console.warn('Supabase fetch bypassed, using local database cache:', err);
+  }
+
+  // 2. Fallback to local / memory database
+  return getPublicPortfolio();
+}
+
 export function deepMergePortfolio(target: FullPortfolioData, source: Partial<FullPortfolioData>): FullPortfolioData {
   return {
     heroContent: {
@@ -684,10 +703,49 @@ export function deepMergePortfolio(target: FullPortfolioData, source: Partial<Fu
   };
 }
 
+export async function updatePortfolioDataAsync(newPortfolio: Partial<FullPortfolioData>): Promise<FullPortfolioData> {
+  const db = getDatabase();
+  const merged = deepMergePortfolio(db.portfolio || DEFAULT_PORTFOLIO, newPortfolio);
+  db.portfolio = merged;
+  saveDatabase(db);
+
+  // Sync to Supabase in background / await
+  try {
+    await savePortfolioToSupabase(merged);
+  } catch (err) {
+    console.warn('Supabase cloud save warning:', err);
+  }
+
+  return db.portfolio;
+}
+
 export function updatePortfolioData(newPortfolio: Partial<FullPortfolioData>): FullPortfolioData {
   const db = getDatabase();
   db.portfolio = deepMergePortfolio(db.portfolio || DEFAULT_PORTFOLIO, newPortfolio);
   saveDatabase(db);
+
+  // Trigger non-blocking Supabase sync
+  savePortfolioToSupabase(db.portfolio).catch((err) => {
+    console.warn('Background Supabase sync failed:', err);
+  });
+
+  return db.portfolio;
+}
+
+export async function resetPortfolioToDefaultAsync(): Promise<FullPortfolioData> {
+  const db = getDatabase();
+  db.portfolio = {
+    ...DEFAULT_PORTFOLIO,
+    updatedAt: new Date().toISOString(),
+  };
+  saveDatabase(db);
+
+  try {
+    await savePortfolioToSupabase(db.portfolio);
+  } catch (err) {
+    console.warn('Supabase reset warning:', err);
+  }
+
   return db.portfolio;
 }
 
@@ -698,6 +756,11 @@ export function resetPortfolioToDefault(): FullPortfolioData {
     updatedAt: new Date().toISOString(),
   };
   saveDatabase(db);
+
+  savePortfolioToSupabase(db.portfolio).catch((err) => {
+    console.warn('Background Supabase reset failed:', err);
+  });
+
   return db.portfolio;
 }
 

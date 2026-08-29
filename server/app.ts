@@ -5,10 +5,14 @@ import bcrypt from 'bcryptjs';
 import {
   findUserByUsername,
   getPublicPortfolio,
+  getPublicPortfolioAsync,
   updatePortfolioData,
+  updatePortfolioDataAsync,
   resetPortfolioToDefault,
+  resetPortfolioToDefaultAsync,
   FullPortfolioData,
 } from './db';
+import { checkSupabaseConnection } from './supabase';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'robotfolio-secret-key-2026-wro-admin-token';
 
@@ -86,15 +90,28 @@ export function createApp() {
   });
 
   // -------------------------------------------------------------
+  // Supabase Cloud DB Status
+  // -------------------------------------------------------------
+  app.get(['/api/supabase/status', '/supabase/status'], async (req: Request, res: Response) => {
+    try {
+      const status = await checkSupabaseConnection();
+      res.json({ success: true, ...status });
+    } catch (err: any) {
+      res.json({ success: false, connected: false, error: err?.message });
+    }
+  });
+
+  // -------------------------------------------------------------
   // Public Portfolio API (Handle both /api/portfolio and /portfolio)
   // -------------------------------------------------------------
-  app.get(['/api/portfolio', '/portfolio'], (req: Request, res: Response) => {
+  app.get(['/api/portfolio', '/portfolio'], async (req: Request, res: Response) => {
     try {
-      const data = getPublicPortfolio();
+      const data = await getPublicPortfolioAsync();
       res.json({ success: true, data });
     } catch (error: any) {
       console.error('Error getting portfolio:', error);
-      res.status(200).json({ success: true, data: null, fallback: true });
+      const fallback = getPublicPortfolio();
+      res.status(200).json({ success: true, data: fallback, fallback: true });
     }
   });
 
@@ -232,38 +249,41 @@ export function createApp() {
   // -------------------------------------------------------------
   // Protected Admin Portfolio Operations (Authenticated Admin Only)
   // -------------------------------------------------------------
-  app.put(['/api/portfolio', '/portfolio'], authenticateToken, (req: Request, res: Response) => {
+  app.put(['/api/portfolio', '/portfolio'], authenticateToken, async (req: Request, res: Response) => {
     try {
       const payload = req.body as Partial<FullPortfolioData>;
-      const updated = updatePortfolioData(payload);
+      const updated = await updatePortfolioDataAsync(payload);
       res.json({
         success: true,
-        message: '포트폴리오가 성공적으로 저장 및 공개 반영되었습니다.',
+        message: '포트폴리오가 Supabase 클라우드 DB 및 서버에 성공적으로 저장되었습니다.',
         data: updated,
       });
     } catch (error: any) {
       console.error('Error updating portfolio:', error);
+      const fallback = updatePortfolioData(req.body);
       res.status(200).json({
         success: true,
         message: '포트폴리오가 로컬 모드로 저장되었습니다.',
-        data: req.body,
+        data: fallback,
       });
     }
   });
 
-  app.post(['/api/portfolio/reset', '/portfolio/reset'], authenticateToken, (req: Request, res: Response) => {
+  app.post(['/api/portfolio/reset', '/portfolio/reset'], authenticateToken, async (req: Request, res: Response) => {
     try {
-      const reset = resetPortfolioToDefault();
+      const reset = await resetPortfolioToDefaultAsync();
       res.json({
         success: true,
-        message: '포트폴리오가 기본 데이터로 초기화되었습니다.',
+        message: '포트폴리오가 Supabase 클라우드 DB 및 기본 데이터로 초기화되었습니다.',
         data: reset,
       });
     } catch (error: any) {
       console.error('Error resetting portfolio:', error);
+      const fallback = resetPortfolioToDefault();
       res.status(200).json({
         success: true,
         message: '포트폴리오가 초기화되었습니다.',
+        data: fallback,
       });
     }
   });

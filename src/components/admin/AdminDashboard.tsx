@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { FullPortfolioData } from '../../../server/db';
 import { savePortfolioApi, resetPortfolioApi, logoutAdminApi, mergeWithDefaults } from '../../services/api';
+import { checkClientSupabaseStatus, SUPABASE_SETUP_SQL, SUPABASE_URL } from '../../services/supabase';
 import { SkillItem, TrialLog, TimelineEvent, Project, BgmTrack, BgmConfig } from '../../types';
 import { ImageUploadField } from './ImageUploadField';
 
@@ -463,14 +464,67 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Force Server Sync
+  // -------------------------------------------------------------
+  // Supabase Cloud DB Status & SQL Helper Handlers
+  // -------------------------------------------------------------
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    loading: boolean;
+    connected: boolean;
+    tableExists: boolean;
+    error?: string;
+  }>({
+    loading: false,
+    connected: true,
+    tableExists: true,
+  });
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const checkSupabaseHealth = async () => {
+    setSupabaseStatus((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await checkClientSupabaseStatus();
+      setSupabaseStatus({
+        loading: false,
+        connected: res.connected,
+        tableExists: res.tableExists,
+        error: res.error,
+      });
+    } catch (e: any) {
+      setSupabaseStatus({
+        loading: false,
+        connected: false,
+        tableExists: false,
+        error: e?.message,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sync') {
+      checkSupabaseHealth();
+    }
+  }, [activeTab]);
+
+  const handleCopySql = async () => {
+    try {
+      await navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+      setCopiedSql(true);
+      showFeedback('success', 'Supabase SQL 테이블 생성 쿼리가 클립보드에 복사되었습니다.');
+      setTimeout(() => setCopiedSql(false), 3000);
+    } catch (err) {
+      showFeedback('error', 'SQL 복사에 실패했습니다.');
+    }
+  };
+
+  // Force Server & Supabase Cloud Sync
   const handleForceSyncServer = async () => {
     setSyncingServer(true);
     const res = await savePortfolioApi(formData);
     setSyncingServer(false);
     if (res.success && res.data) {
       onDataSaved(res.data);
-      showFeedback('success', '서버 데이터베이스로 전체 내용이 강제 동기화되었습니다. (모든 기기 즉시 반영)');
+      showFeedback('success', '서버 및 Supabase 클라우드 DB로 전체 내용이 동기화되었습니다!');
+      checkSupabaseHealth();
     } else {
       showFeedback('error', res.error || '서버 동기화 중 오류가 발생했습니다.');
     }
@@ -1886,6 +1940,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <p className="text-xs text-slate-400 mt-1">
                   PC에서 수정한 내용을 모바일 기기에 즉시 반영하거나, JSON 파일로 안전하게 백업 및 불러올 수 있습니다.
                 </p>
+              </div>
+
+              {/* Supabase Cloud DB Realtime Sync Card */}
+              <div className="bg-gradient-to-r from-emerald-950/40 via-slate-950/80 to-cyan-950/40 border border-emerald-500/30 rounded-xl p-5 shadow-lg relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        Supabase 클라우드 DB 실시간 연동
+                        <span className={`px-2 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider ${
+                          supabaseStatus.connected && supabaseStatus.tableExists
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {supabaseStatus.connected && supabaseStatus.tableExists ? '클라우드 DB 활성화됨' : 'SQL 테이블 설정 필요'}
+                        </span>
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-300">
+                      연결 URL: <span className="font-mono text-cyan-300 text-[11px]">{SUPABASE_URL}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      수정한 모든 글과 사진이 Supabase 클라우드 DB에 영구 보존되어 <strong>모바일, PC, 면접관 등 모든 기기에서 100% 실시간 공유</strong>됩니다.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleCopySql}
+                      className="px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                      title="Supabase SQL Editor에 붙여넣을 테이블 생성 쿼리 복사"
+                    >
+                      {copiedSql ? (
+                        <>
+                          <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400">SQL 복사됨</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>SQL 쿼리 복사</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={checkSupabaseHealth}
+                      disabled={supabaseStatus.loading}
+                      className="px-3.5 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5 border border-emerald-500/40 transition-colors cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${supabaseStatus.loading ? 'animate-spin' : ''}`} />
+                      <span>{supabaseStatus.loading ? '확인 중...' : '연결 테스트'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {!supabaseStatus.tableExists && (
+                  <div className="mt-4 p-3 bg-amber-950/40 border border-amber-500/30 rounded-lg text-xs text-amber-200 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span>💡 Supabase 테이블 초기 1회 설정 안내</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Supabase 콘솔의 <strong>SQL Editor</strong> 메뉴에서 위 <strong>[SQL 쿼리 복사]</strong> 버튼을 누른 뒤 실행(Run)하시면 <code className="bg-black/40 px-1 py-0.5 rounded text-cyan-300">portfolio_data</code> 테이블이 즉시 생성되어 영구 저장됩니다.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Status / Cloud Sync Panel */}
